@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse # On utilise FileResponse directement
+from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 import pandas as pd
 import joblib
@@ -9,16 +9,22 @@ from io import BytesIO, StringIO
 import logging
 import json
 import numpy as np
-import tempfile # Pour créer des fichiers temporaires de manière sécurisée
-import asyncio # Pour BackgroundTask
+import tempfile
+import asyncio
+from starlette.background import BackgroundTask # NOUVEAU: Import nécessaire pour BackgroundTask
+
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importation des utilitaires
-import backend.utils.observation_generator as observation_generator
-from backend.utils.observation_generator import get_original_feature_name, add_client_insights_to_df 
-from backend.utils.report_generator import generate_pdf_report
+# Importation des utilitaires avec chemins relatifs
+# Correction: utilisez '.' pour importer depuis le même niveau de paquet ou '..utils' pour le dossier parent du dossier courant.
+# Puisque app.py est dans le dossier 'backend', et observation_generator est dans 'backend/utils',
+# les imports doivent être relatifs au dossier 'backend' lui-même.
+from .utils import observation_generator
+from .utils.observation_generator import get_original_feature_name, add_client_insights_to_df 
+from .utils.report_generator import generate_pdf_report
+
 
 app = FastAPI()
 
@@ -35,25 +41,24 @@ logging.info("DEBUG: CORSMiddleware appliqué.")
 
 
 # Construire les chemins absolus pour les modèles et métriques (locaux dans le conteneur)
+# Render définit '/opt/render/project/src/' comme la racine de votre dépôt.
+# Si votre Root Directory sur Render est 'backend/', alors les chemins sont relatifs à 'backend/'.
+# Les fichiers sont donc dans 'models/' et 'data/' par rapport à 'backend/'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_CONSO_PATH = os.path.join(BASE_DIR, "models", "model_conso.pkl")
 MODEL_IMMO_PATH = os.path.join(BASE_DIR, "models", "model_immo.pkl")
 METRICS_PATH = os.path.join(BASE_DIR, "models", "metrics.json")
-# TRAIN_DATASET_PATH = os.path.join(BASE_DIR, "data", "train_dataset.xlsx") # Pas directement utilisé ici, mais dans observation_generator
 
 
 # Dictionnaire pour stocker les modèles chargés et les métriques
 models = {}
-model_performance_metrics = {} # Déclaration initiale au niveau du module
+model_performance_metrics = {}
 
 @app.on_event("startup")
 async def load_resources():
     """Charge les modèles de scoring et les métriques au démarrage de l'application depuis les fichiers locaux."""
     logging.info("DEBUG: Exécution de l'événement de démarrage (startup event).")
     
-    # Correction: La déclaration 'global' DOIT être la première fois que vous référencez la variable
-    # dans la portée de la fonction si vous comptez la modifier et que son nom existe déjà dans la portée globale.
-    # Ici, nous la réassignons (model_performance_metrics = json.load(f)), donc 'global' est nécessaire.
     global model_performance_metrics
 
     # Chargement des modèles
@@ -83,7 +88,7 @@ async def load_resources():
     try:
         logging.info(f"Chargement des métriques depuis : {METRICS_PATH}")
         with open(METRICS_PATH, 'r') as f:
-            model_performance_metrics = json.load(f) # Assignation qui nécessite 'global'
+            model_performance_metrics = json.load(f)
         logging.info("Métriques chargées avec succès.")
     except FileNotFoundError:
         logging.warning(f"Avertissement : Le fichier de métriques est introuvable à {METRICS_PATH}. Les métriques ne seront pas affichées.")
@@ -98,7 +103,7 @@ async def load_resources():
     # Initialisation de observation_generator pour charger les colonnes attendues (depuis local)
     try:
         logging.info("DEBUG: Chargement des colonnes attendues via observation_generator._load_expected_columns()...")
-        observation_generator._load_expected_columns() # Appelle la fonction dans le module
+        observation_generator._load_expected_columns()
         logging.info("DEBUG: Colonnes attendues chargées avec succès.")
     except Exception as e:
         logging.error(f"Erreur critique lors du pré-chargement des colonnes attendues : {e}")
@@ -112,10 +117,6 @@ async def read_root():
     return {"message": "Bienvenue sur l'API Datafindser ! Le backend fonctionne."}
 
 
-# Dictionnaire pour stocker temporairement les chemins des rapports générés
-# Ce n'est pas persistant sur Render, mais est nécessaire pour que les endpoints de téléchargement
-# puissent retrouver le fichier juste après qu'il ait été généré par la fonction predict_aptitude.
-# La clé sera une combinaison de filename et un ID unique pour éviter les collisions.
 temp_reports_storage = {}
 
 @app.post("/predict_aptitude/")
@@ -199,21 +200,19 @@ async def predict_aptitude(
 
     # --- Génération et stockage temporaire du rapport PDF ---
     pdf_filename_base = f"rapport_scoring_{base_filename}_{credit_type}.pdf"
-    # Créer un fichier temporaire unique dans /tmp
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf", dir="/tmp") as tmp_pdf_file:
         temp_pdf_path = tmp_pdf_file.name
     try:
         generate_pdf_report(
             df_results,
-            temp_pdf_path, # Passe le chemin complet du fichier temporaire
+            temp_pdf_path,
             credit_type,
             model_performance_metrics.get(credit_type, {}),
             file_analysis,
             df_original
         )
-        # Stocke le chemin temporaire réel avec le nom de fichier souhaité pour le téléchargement
         temp_reports_storage[pdf_filename_base] = temp_pdf_path
-        report_paths['pdf'] = pdf_filename_base # Le frontend recevra ce nom pour la requête de téléchargement
+        report_paths['pdf'] = pdf_filename_base
         logging.info(f"Rapport PDF généré et stocké temporairement : {temp_pdf_path}")
     except Exception as e:
         logging.error(f"Erreur lors de la génération du rapport PDF : {e}", exc_info=True)
@@ -279,18 +278,16 @@ async def predict_aptitude(
         "predictions_with_details": predictions_with_details,
         "model_metrics": model_performance_metrics.get(credit_type, {}),
         "file_analysis": file_analysis,
-        "report_paths": report_paths # Contient seulement les noms de fichiers pour la requête de téléchargement
+        "report_paths": report_paths
     })
 
 # --- Endpoints de téléchargement local ---
 @app.get("/download_report/{report_filename:path}")
 async def download_pdf_report(report_filename: str):
-    # Récupérer le chemin temporaire du rapport
     file_path = temp_reports_storage.get(report_filename)
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Rapport PDF '{report_filename}' non trouvé ou expiré. Veuillez relancer l'analyse.")
     
-    # Renvoyer le fichier et le supprimer immédiatement après
     return FileResponse(file_path, media_type="application/pdf", filename=report_filename, background=BackgroundTask(lambda: os.remove(file_path) if os.path.exists(file_path) else None))
 
 @app.get("/download_csv/{filename:path}")
@@ -308,4 +305,3 @@ async def download_xlsx_report(filename: str):
         raise HTTPException(status_code=404, detail=f"Rapport XLSX '{filename}' non trouvé ou expiré. Veuillez relancer l'analyse.")
     
     return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=filename, background=BackgroundTask(lambda: os.remove(file_path) if os.path.exists(file_path) else None))
-
