@@ -1,8 +1,48 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-env/
-venv/
-*.env
-.DS_Store
+    # Ignorer les dossiers de Python
+    __pycache__/
+    *.pyc
+    *.pyo
+    *.pyd
+    .venv/
+    venv/
+    env/
+
+    # Ignorer les rapports générés
+    backend/reports/
+    *.csv
+    *.xlsx
+    *.pdf
+    *.png
+    *.jpg
+
+    # Ignorer les modèles si vous ne voulez pas les versionner (mais pour Render sans GCS, vous devez les inclure)
+    # models/ # NE PAS DÉCOMMENTER CELA SI VOUS VOULEZ QUE RENDER DÉPLOIE LES MODÈLES AVEC L'APP
+    # metrics.json # NE PAS DÉCOMMENTER
+
+    # Ignorer les fichiers temporaires
+    *~
+    *.tmp
+    *.log
+    Thumbs.db
+    .DS_Store
+    ~$*.xlsx # Fichiers temporaires d'Excel
+
+    # Fichiers sensibles
+    .env
+    *.env
+    credentials.json # Si vous utilisez une clé de service JSON localement (pas recommandé pour Git)
+
+    # Exclure les fichiers de configuration Docker que vous avez accidentellement ajoutés
+    Dockerfile.backend
+    Dockerfile.frontend
+    docker-compose.yml # Ce fichier ne doit pas être à la racine si backend/ est le 'Root Directory'
+    docker-compose # Un fichier docker-compose sans extension
+
+    # Exclure les fichiers accidentels sans extension ou qui semblent être des bouts de code
+    activation.docx
+    appetence_threshold).sum()
+    file_generator.py # À moins que ce soit un script que vous voulez vraiment inclure et exécuter
+    mean_val
+    py
+    str
+    
