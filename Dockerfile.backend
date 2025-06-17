@@ -1,0 +1,24 @@
+# Utilisez une image Python légère
+FROM python:3.11-slim
+
+# Définir le répertoire de travail principal pour l'installation des requirements
+# C'est aussi là que la commande CMD va chercher le module initial si un chemin relatif est donné
+WORKDIR /app
+
+# Copier le fichier requirements.txt du backend
+# Le chemin est relatif au dossier de build (qui est le dossier 'scoring ABB' parent)
+COPY backend/requirements.txt ./backend/requirements.txt
+
+# Installer les dépendances Python
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
+
+# Copier tout le contenu du dossier 'backend' local dans le répertoire 'backend/' à l'intérieur de /app
+# Cela crée /app/backend/{app.py, utils/, models/, data/}
+COPY backend/ ./backend/
+
+# Exposer le port sur lequel FastAPI va écouter
+EXPOSE 8000
+
+# Commande pour exécuter l'application FastAPI avec Uvicorn
+# 'backend.app:app' signifie : dans le dossier 'backend', trouver le fichier 'app.py' et l'objet 'app'
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

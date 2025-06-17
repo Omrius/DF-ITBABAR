@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000" # Mappe le port 8000 du conteneur au port 8000 de l'hôte
+    # Le volume monte le dossier backend local dans /app/backend dans le conteneur
+    # Cela permet à vos scripts Python de voir les fichiers locaux (modèles, data, utils)
+    volumes:
+      - ./backend:/app/backend
+    # La variable PYTHONPATH est importante pour les imports internes du backend
+    environment:
+      - PYTHONPATH=/app/backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8080:80" # Mappe le port 80 du Nginx au port 8080 de l'hôte
+    volumes:
+      - ./frontend:/usr/share/nginx/html # Monte le dossier frontend local dans le dossier web de Nginx

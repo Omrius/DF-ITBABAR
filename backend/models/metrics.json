@@ -1,0 +1,121 @@
+{
+    "conso": {
+        "accuracy": 0.469,
+        "precision": 0.4821092278719397,
+        "recall": 0.5,
+        "f1_score": 0.49089165867689355,
+        "feature_importances": [
+            [
+                "taux_endettement",
+                0.19031982273958928
+            ],
+            [
+                "revenus",
+                0.19002290510114347
+            ],
+            [
+                "montant_credits",
+                0.18822513871428923
+            ],
+            [
+                "age",
+                0.14464220458262217
+            ],
+            [
+                "duree_anciennete",
+                0.13070654009044796
+            ],
+            [
+                "nb_credits",
+                0.0891525280659618
+            ],
+            [
+                "credit_immo",
+                0.023697019707134986
+            ],
+            [
+                "credit_conso",
+                0.022100779577844926
+            ],
+            [
+                "historique_I",
+                0.010717787548295317
+            ],
+            [
+                "historique_A",
+                0.010415273872670917
+            ]
+        ]
+    },
+    "immo": {
+        "accuracy": 0.521,
+        "precision": 0.5244618395303327,
+        "recall": 0.5317460317460317,
+        "f1_score": 0.5280788177339901,
+        "feature_importances": [
+            [
+                "revenus",
+                0.19116707423656212
+            ],
+            [
+                "montant_credits",
+                0.1876521642843877
+            ],
+            [
+                "taux_endettement",
+                0.18722576124704457
+            ],
+            [
+                "age",
+                0.1476557127450149
+            ],
+            [
+                "duree_anciennete",
+                0.13228048144798993
+            ],
+            [
+                "nb_credits",
+                0.08691969316037852
+            ],
+            [
+                "credit_conso",
+                0.023877635458779273
+            ],
+            [
+                "credit_immo",
+                0.0203456345870043
+            ],
+            [
+                "historique_I",
+                0.011485004765787475
+            ],
+            [
+                "historique_A",
+                0.011390838067051238
+            ]
+        ]
+    },
+    "original_trained_features": [
+        "age",
+        "revenus",
+        "credit_conso",
+        "credit_immo",
+        "historique",
+        "duree_anciennete",
+        "nb_credits",
+        "montant_credits",
+        "taux_endettement"
+    ],
+    "full_trained_dummy_features": [
+        "age",
+        "revenus",
+        "credit_conso",
+        "credit_immo",
+        "duree_anciennete",
+        "nb_credits",
+        "montant_credits",
+        "taux_endettement",
+        "historique_A",
+        "historique_I"
+    ]
+}

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pandas
+scikit-learn
+joblib
+matplotlib
+seaborn
+fpdf2 # Assurez-vous d'utiliser fpdf2 pour la compatibilité Python 3+
+openpyxl # Pour la lecture/écriture des fichiers XLSX
+python-multipart # Pour la gestion des UploadFile dans FastAPI
