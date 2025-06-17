@@ -21,9 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // REMPLACER cette URL avec l'URL de votre service Cloud Run déployé
   // EXEMPLE: const BACKEND_BASE_URL = 'https://your-cloud-run-service-xyz-run.app/';
-  const BACKEND_BASE_URL = 'http://localhost:8000'; // Garder pour le développement local
-  // Une fois déployé sur Render, vous devrez remplacer 'http://localhost:8000' par l'URL réelle de votre service Web Render.
-  // Exemple: 'https://scoring-abb-backend.onrender.com'
+  const BACKEND_BASE_URL = 'https://df-itbabar.onrender.com'; // Garder pour le développement local
+
 
   // --- Fonctions utilitaires pour les messages ---
   function showMessage(message, type = 'info') {
