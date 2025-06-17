@@ -11,19 +11,17 @@ import json
 import numpy as np
 import tempfile
 import asyncio
-from starlette.background import BackgroundTask # NOUVEAU: Import nécessaire pour BackgroundTask
+from starlette.background import BackgroundTask # Import nécessaire pour BackgroundTask
 
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importation des utilitaires avec chemins relatifs
-# Correction: utilisez '.' pour importer depuis le même niveau de paquet ou '..utils' pour le dossier parent du dossier courant.
-# Puisque app.py est dans le dossier 'backend', et observation_generator est dans 'backend/utils',
-# les imports doivent être relatifs au dossier 'backend' lui-même.
-from .utils import observation_generator
-from .utils.observation_generator import get_original_feature_name, add_client_insights_to_df 
-from .utils.report_generator import generate_pdf_report
+# Importation des utilitaires avec chemins ABSOLUS par rapport au Root Directory de Render ('backend/')
+# Correct: Python va chercher 'utils' directement dans le chemin de l'application.
+import utils.observation_generator as observation_generator
+from utils.observation_generator import get_original_feature_name, add_client_insights_to_df 
+from utils.report_generator import generate_pdf_report
 
 
 app = FastAPI()
@@ -89,7 +87,7 @@ async def load_resources():
         logging.info(f"Chargement des métriques depuis : {METRICS_PATH}")
         with open(METRICS_PATH, 'r') as f:
             model_performance_metrics = json.load(f)
-        logging.info("Métriques chargées avec succès.")
+        logging.info("Métriques loaded successfully.")
     except FileNotFoundError:
         logging.warning(f"Avertissement : Le fichier de métriques est introuvable à {METRICS_PATH}. Les métriques ne seront pas affichées.")
         model_performance_metrics = {}
