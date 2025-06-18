@@ -47,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('fileInput');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const confirmationDiv = document.getElementById('confirmation');
-  const resultsContent = document.getElementById('resultsContent');
+  // MODIFICATION ICI: Renommage de resultsContent en rawPredictionsContent pour correspondre à l'ID HTML
+  const rawPredictionsContent = document.getElementById('rawPredictionsContent'); 
   const creditTypeSelect = document.getElementById('creditType');
   const downloadReportBtn = document.getElementById('downloadReportBtn');
   const downloadCsvBtn = document.getElementById('downloadCsvBtn');
@@ -96,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
       iaMetricsContent.innerHTML = '';
       fileMetricsContent.innerHTML = '';
       clientScoringTableContainer.innerHTML = '';
-      resultsContent.textContent = '';
+      rawPredictionsContent.textContent = ''; // MODIFICATION ICI
       // Activer seulement la section d'upload pendant l'analyse
       document.getElementById('upload-section').classList.remove('hidden');
       // Enlever 'active' des sidebar items, l'ajoutera après si succès
@@ -138,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Passer toutes les données pertinentes, y compris le score primaire
         updateClientScoringTable(lastAnalysisData.predictions_with_details, lastAnalysisData.file_analysis.colonnes);
       } else if (sectionId === 'raw-predictions-section') {
-        resultsContent.textContent = JSON.stringify(lastAnalysisData.predictions_with_details, null, 2); // Afficher les détails complets ici
+        rawPredictionsContent.textContent = JSON.stringify(lastAnalysisData.predictions_with_details, null, 2); // MODIFICATION ICI
       }
     }
   }
@@ -196,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateFileAnalysis(data.file_analysis);
       // Passer le data.predictions_with_details qui contient maintenant les deux scores
       updateClientScoringTable(data.predictions_with_details, data.file_analysis.colonnes);
-      resultsContent.textContent = JSON.stringify(data.predictions_with_details, null, 2); // Met à jour le contenu brut avec les détails
+      rawPredictionsContent.textContent = JSON.stringify(data.predictions_with_details, null, 2); // MODIFICATION ICI
 
       currentReportPaths = data.report_paths;
 
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (error) {
       showMessage(`❌ Erreur lors de l’analyse : ${error.message}`, 'error');
-      resultsContent.textContent = error.toString();
+      rawPredictionsContent.textContent = error.toString(); // MODIFICATION ICI
       console.error("Détail de l'erreur :", error);
     } finally {
       showLoading(false);
@@ -328,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <ul>
     `;
     for (const col in analysis.valeurs_manquantes) {
-      html += `<li><strong>${col}:</strong> <span>${analysis.valeurs_manquantes[col]}</span></li>`;
+      html += `<li><strong>${col}:</strong> <span>${analysis.valeurs_manquantes[col]}</li>`;
     }
     html += `</ul>
       <h3>Résumé statistique:</h3>
