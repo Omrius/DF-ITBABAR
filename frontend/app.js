@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoading(true);
 
     try {
-      const response = await fetch('https://df-itbabar-1.onrender.com/predict_aptitude', {
+      const response = await fetch('https://df-itbabar.onrender.com/predict_aptitude', {
         method: 'POST',
         body: formData,
       });
