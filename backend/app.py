@@ -16,9 +16,9 @@ from starlette.background import BackgroundTask
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importation des utilitaires
-import backend.utils.observation_generator as observation_generator
-from backend.utils.report_generator import generate_pdf_report 
+# IMPORTATIONS CORRIGÉES : Les chemins sont relatifs au paquet 'backend'
+import utils.observation_generator as observation_generator
+from utils.report_generator import generate_pdf_report 
 
 
 app = FastAPI()
@@ -104,7 +104,7 @@ async def load_resources():
     # Elles sont maintenant chargées une seule fois et stockées dans des variables de l'application
     try:
         logging.info("DEBUG: Chargement des colonnes attendues via observation_generator._load_expected_columns_and_original_features_for_startup()...")
-        # Correction de l'appel de fonction ici
+        # Correction de l'appel de fonction ici (l'import est 'utils.observation_generator')
         app_expected_columns_after_dummies, app_original_trained_features = observation_generator._load_expected_columns_and_original_features_for_startup()
         logging.info("DEBUG: Colonnes attendues chargées avec succès.")
     except Exception as e:
