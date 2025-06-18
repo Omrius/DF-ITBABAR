@@ -49,7 +49,7 @@ let currentPage = 0;
 const ITEMS_PER_PAGE = 10; // Nombre de clients à afficher par clic sur "Afficher plus"
 
 // --- Configuration du mot de passe (À CHANGER POUR LA PRODUCTION AVEC UN SYSTÈME SÉCURISÉ) ---
-const CORRECT_PASSWORD = "passwordfitbabar062525"; // Le mot de passe simple et hardcodé
+const CORRECT_PASSWORD = "password123"; // Le mot de passe simple et hardcodé
 
 // --- LOGIQUE DE CONNEXION ---
 loginButton.addEventListener('click', () => {
