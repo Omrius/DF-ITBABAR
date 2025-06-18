@@ -16,7 +16,8 @@ from starlette.background import BackgroundTask
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# IMPORTATIONS CORRIGÉES : Les chemins sont relatifs au paquet 'backend'
+# IMPORTATIONS : Les chemins sont relatifs au paquet 'backend' qui sera maintenant la Root Directory sur Render
+# Assurez-vous que ces lignes sont bien telles quelles dans votre backend/app.py
 import utils.observation_generator as observation_generator
 from utils.report_generator import generate_pdf_report 
 
@@ -36,6 +37,7 @@ logging.info("DEBUG: CORSMiddleware appliqué.")
 
 
 # Construire les chemins absolus pour les modèles et métriques
+# BASE_DIR pointera désormais vers /opt/render/project/src/backend/
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 
 MODEL_CONSO_PATH = os.path.join(BASE_DIR, "models", "model_conso.pkl")
@@ -104,7 +106,7 @@ async def load_resources():
     # Elles sont maintenant chargées une seule fois et stockées dans des variables de l'application
     try:
         logging.info("DEBUG: Chargement des colonnes attendues via observation_generator._load_expected_columns_and_original_features_for_startup()...")
-        # Correction de l'appel de fonction ici (l'import est 'utils.observation_generator')
+        # L'import est 'utils.observation_generator' car 'backend' est la nouvelle racine
         app_expected_columns_after_dummies, app_original_trained_features = observation_generator._load_expected_columns_and_original_features_for_startup()
         logging.info("DEBUG: Colonnes attendues chargées avec succès.")
     except Exception as e:
@@ -368,7 +370,7 @@ async def predict_aptitude(
     for i in range(num_clients_to_display):
         client_row = df_results.iloc[i]
         original_data_for_client = {}
-        for col in cols_to_display_in_frontend_original_data:
+        for col in cols_to_to_display_in_frontend_original_data:
             val = client_row.get(col, None)
             original_data_for_client[col] = clean_nans_infs_recursive(val)
 
