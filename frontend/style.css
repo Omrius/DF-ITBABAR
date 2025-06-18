@@ -38,7 +38,7 @@
 body {
   font-family: 'Inter', sans-serif;
   margin: 0;
-  display: flex;
+  display: flex; /* Le corps est un conteneur flex */
   min-height: 100vh;
   background: linear-gradient(135deg, var(--background-light) 0%, var(--background-medium) 100%);
   color: var(--text-dark);
@@ -66,7 +66,7 @@ body {
     min-height: 100vh;
     width: 100%;
     background: linear-gradient(135deg, var(--primary-brand-color) 0%, #00aaff 100%);
-    position: absolute;
+    position: absolute; /* Permet de le superposer au contenu de l'application */
     top: 0;
     left: 0;
     z-index: 2000;
@@ -116,7 +116,7 @@ body {
     font-size: 1.1em;
     color: var(--text-dark);
     transition: all var(--transition-normal);
-    box-sizing: border-box; /* Ensures padding doesn't increase total width */
+    box-sizing: border-box;
 }
 
 #password-input:focus {
@@ -125,20 +125,27 @@ body {
     outline: none;
 }
 
+/* Conteneur principal de l'application */
+#app-content {
+  display: flex; /* C'est LA correction : rend #app-content un conteneur flex */
+  flex-grow: 1; /* Permet à #app-content de prendre l'espace disponible */
+  width: 100%; /* S'assure qu'il prend toute la largeur disponible */
+}
+
 
 /* Sidebar */
 #sidebar {
   background: linear-gradient(to bottom, var(--sidebar-bg-start), var(--sidebar-bg-end));
   color: var(--text-light);
-  width: 280px;
+  width: 280px; /* Largeur fixe */
   padding: 35px 0;
   box-shadow: 4px 0 20px var(--shadow-lg);
   display: flex;
   flex-direction: column;
   border-radius: 0 var(--border-radius-xl) var(--border-radius-xl) 0;
-  position: sticky;
+  position: sticky; /* Reste en place au défilement */
   top: 0;
-  height: 100vh;
+  height: 100vh; /* Prend toute la hauteur de la fenêtre */
   z-index: 1000;
 }
 
@@ -235,9 +242,9 @@ body {
 
 /* Main Content */
 #main-content {
-  flex: 1;
+  flex: 1; /* Prend tout l'espace restant horizontalement */
   padding: 50px;
-  overflow-y: auto;
+  overflow-y: auto; /* Permet le défilement si le contenu est trop long */
   position: relative;
 }
 
@@ -343,7 +350,7 @@ body {
   background-color: var(--background-light);
   color: var(--text-dark);
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-  box-sizing: border-box; /* Include padding in the element's total width and height */
+  box-sizing: border-box;
 }
 
 .text-input:focus {
@@ -796,6 +803,9 @@ body {
   .login-card {
     margin: 20px;
     padding: 30px;
+  }
+  #app-content { /* Sur les petits écrans, empiler la sidebar et le main-content */
+    flex-direction: column;
   }
   #sidebar {
     width: 100%;
