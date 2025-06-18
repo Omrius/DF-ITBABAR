@@ -181,8 +181,9 @@ p {
     line-height: 1.6;
 }
 
+/* RENDRE LA CLASSE HIDDEN PLUS ROBUSTE */
 .hidden {
-    display: none;
+    display: none !important; /* Ajout de !important pour forcer la masquage */
 }
 
 .error-message {
