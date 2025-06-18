@@ -1,13 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const fileInput = document.getElementById('fileInput');
-  const analyzeBtn = document.getElementById('analyzeBtn');
+  console.log("DOM entièrement chargé. Démarrage de l'application.");
+
+  // Éléments de l'écran de connexion
+  const loginScreen = document.getElementById('login-screen');
+  const passwordInput = document.getElementById('password-input');
+  const loginButton = document.getElementById('login-button');
+  const loginErrorMessage = document.getElementById('login-error-message');
+  const appContent = document.getElementById('app-content');
+
+  // Éléments du tableau de bord (renommés pour correspondre à index.html)
+  const fileInput = document.getElementById('fileInput'); // Était 'file-input'
+  const analyzeBtn = document.getElementById('analyzeBtn'); // Était 'predict-button'
   const confirmationDiv = document.getElementById('confirmation');
-  const resultsContent = document.getElementById('resultsContent');
-  const creditTypeSelect = document.getElementById('creditType');
-  const downloadReportBtn = document.getElementById('downloadReportBtn');
-  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-  const downloadXlsxBtn = document.getElementById('downloadXlsxBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
+  const creditTypeSelect = document.getElementById('creditType'); // Était 'credit-type-select'
+  const downloadReportBtn = document.getElementById('downloadReportBtn'); // Était 'download-pdf-button'
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn'); // Était 'download-csv-button'
+  const downloadXlsxBtn = document.getElementById('downloadXlsxBtn'); // Était 'download-xlsx-button'
+  const loadingIndicator = document.getElementById('loadingIndicator'); // Était 'loading-indicator'
+  const thresholdInput = document.getElementById('threshold-input'); // Ajouté pour le seuil
 
   // Nouvelle structure pour les sections de contenu principal
   const mainSections = document.querySelectorAll('.main-section');
@@ -17,15 +27,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const iaMetricsContent = document.getElementById('iaMetricsContent');
   const fileMetricsContent = document.getElementById('fileMetricsContent');
   const clientScoringTableContainer = document.getElementById('clientScoringTableContainer');
-  const rawPredictionsContent = document.getElementById('rawPredictionsContent'); // Ajout pour les résultats bruts
+  const rawPredictionsContent = document.getElementById('rawPredictionsContent');
 
   let currentReportPaths = {};
   let lastAnalysisData = null; // Stocke les données de la dernière analyse
   let currentPage = 0; // Page actuelle du tableau des clients
-  const ITEMS_PER_PAGE = 10; // Nombre d'éléments par page
+  let ITEMS_PER_PAGE_GLOBAL = 10; // Nombre d'éléments par page, peut être modifié par "Afficher tout"
 
   // --- Fonctions utilitaires pour les messages ---
   function showMessage(message, type = 'info') {
+    console.log(`Message (${type}): ${message}`);
     confirmationDiv.textContent = message;
     confirmationDiv.className = `message ${type}`;
     confirmationDiv.style.opacity = '1';
@@ -37,8 +48,62 @@ document.addEventListener('DOMContentLoaded', () => {
   function showLoading(show) {
     if (show) {
       loadingIndicator.classList.remove('hidden');
+      console.log("Affichage de l'indicateur de chargement.");
     } else {
       loadingIndicator.classList.add('hidden');
+      console.log("Masquage de l'indicateur de chargement.");
+    }
+  }
+
+  // --- Logique de connexion ---
+  loginButton.addEventListener('click', () => {
+    const password = passwordInput.value;
+    const correctPassword = 'admin'; // C'est un mot de passe simple pour le test. À sécuriser en production!
+
+    if (password === correctPassword) {
+      loginScreen.classList.add('hidden');
+      appContent.classList.remove('hidden');
+      console.log("Connexion réussie. Affichage du contenu de l'application.");
+      // Afficher la première section du tableau de bord par défaut
+      const firstSidebarItem = document.querySelector('.sidebar-item.active');
+      if (firstSidebarItem) {
+        firstSidebarItem.click(); // Simule un clic pour afficher la section
+      } else {
+        console.warn("Aucun élément actif de la barre latérale trouvé pour l'initialisation.");
+      }
+    } else {
+      loginErrorMessage.textContent = 'Mot de passe incorrect. Veuillez réessayer.';
+      loginErrorMessage.classList.remove('hidden');
+      console.log("Échec de connexion: mot de passe incorrect.");
+      setTimeout(() => {
+        loginErrorMessage.classList.add('hidden');
+      }, 3000);
+    }
+  });
+
+  // Gestion de la saisie du fichier pour activer le bouton d'analyse
+  fileInput.addEventListener('change', () => {
+    const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Choisir un fichier';
+    const fileLabel = document.querySelector('.file-label');
+    if (fileLabel) {
+      fileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${fileName}`;
+    }
+    checkAnalysisButtonState();
+  });
+
+  creditTypeSelect.addEventListener('change', checkAnalysisButtonState);
+  thresholdInput.addEventListener('input', checkAnalysisButtonState);
+
+
+  function checkAnalysisButtonState() {
+    const fileSelected = fileInput.files.length > 0;
+    const creditTypeSelected = creditTypeSelect.value !== '';
+    const thresholdValid = thresholdInput.value >= 0.01 && thresholdInput.value <= 0.99;
+    
+    if (fileSelected && creditTypeSelected && thresholdValid) {
+      analyzeBtn.disabled = false;
+    } else {
+      analyzeBtn.disabled = true;
     }
   }
 
@@ -47,26 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
     item.addEventListener('click', function(event) {
       event.preventDefault();
       const targetSectionId = this.dataset.section;
+      console.log(`Clic sur l'élément de la barre latérale: ${targetSectionId}`);
 
       mainSections.forEach(section => {
         if (section.id === targetSectionId) {
           section.classList.remove('hidden');
-          setTimeout(() => section.classList.add('fade-in'), 10); // Déclenche la transition
+          // Utilisation d'un petit délai pour s'assurer que 'hidden' est retiré avant d'ajouter 'fade-in'
+          setTimeout(() => section.classList.add('fade-in'), 10);
+          console.log(`Affichage de la section: ${section.id}`);
         } else {
           section.classList.remove('fade-in');
           section.classList.add('hidden');
+          console.log(`Masquage de la section: ${section.id}`);
         }
       });
 
       sidebarItems.forEach(sItem => sItem.classList.remove('active'));
       this.classList.add('active');
-
-      // Si on revient à la section d'upload, réinitialiser si nécessaire
-      if (targetSectionId === 'upload-section') {
-        // Optionnel: Réinitialiser les résultats si on revient à l'upload
-        // resultsContent.innerHTML = '';
-        // showLoading(false);
-      }
     });
   });
 
@@ -74,6 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
   analyzeBtn.addEventListener('click', async () => {
     const file = fileInput.files[0];
     const creditType = creditTypeSelect.value;
+    const threshold = thresholdInput.value;
+    console.log("Bouton d'analyse cliqué.");
 
     if (!file) {
       showMessage('Veuillez sélectionner un fichier à analyser.', 'error');
@@ -85,9 +149,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (!(threshold >= 0.01 && threshold <= 0.99)) {
+      showMessage('Veuillez entrer un seuil d\'appétence valide entre 0.01 et 0.99.', 'error');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('credit_type', creditType);
+    formData.append('threshold', threshold); // Ajouter le seuil au FormData
 
     showLoading(true);
     showMessage('Analyse en cours, veuillez patienter...', 'info');
@@ -114,11 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Affichage des résultats dans les sections appropriées
       displayIaPerformanceMetrics(data.ia_performance_metrics);
-      displayFileAnalysisMetrics(data.file_analysis_metrics, data.critères_non_pris_en_charge_a_ignorer);
+      displayFileAnalysisMetrics(data.file_analysis_metrics, data.critères_non_pris_en_charge_a_ignorer || []);
       displayRawPredictions(data.raw_predictions); // Afficher les prédictions brutes
       
       // Initialisation de la pagination pour le tableau client
       currentPage = 0; // Réinitialise la page à 0
+      ITEMS_PER_PAGE_GLOBAL = 10; // Réinitialise la pagination par défaut
       displayClientScoringResults(data); // Affiche la première page ou tout
       
       // Gérer les boutons de téléchargement
@@ -313,8 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const totalClients = data.predictions_with_details.length;
-    const startIndex = currentPage * ITEMS_PER_PAGE;
-    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalClients);
+    const startIndex = currentPage * ITEMS_PER_PAGE_GLOBAL;
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE_GLOBAL, totalClients);
     const clientsToDisplay = data.predictions_with_details.slice(startIndex, endIndex);
 
     let tableHtml = `
@@ -343,16 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const appetenceClass = client.appetence_prediction === 'Oui' ? 'appetence-oui' : 'appetence-non';
       const scoreClass = client.credit_score === 'Faible' ? 'score-faible' : client.credit_score === 'Moyen' ? 'score-moyen' : 'score-eleve';
       
+      // Ensure forces and weaknesses are arrays before mapping
       const forcesHtml = Array.isArray(client.forces) && client.forces.length > 0
         ? `<ul class="list-forces">${client.forces.map(f => `<li>${f}</li>`).join('')}</ul>`
         : 'N/A';
       const weaknessesHtml = Array.isArray(client.weaknesses) && client.weaknesses.length > 0
         ? `<ul class="list-weaknesses">${client.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>`
         : 'N/A';
-
-      // Log pour le débogage des forces et faiblesses
-      console.log(`Client ${clientName}: Forces - ${client.forces ? client.forces.join(', ') : 'N/A'} (Affiche: ${forcesHtml.replace(/<[^>]*>/g, '')})`);
-      console.log(`Client ${clientName}: Faiblesses - ${client.weaknesses ? client.weaknesses.join(', ') : 'N/A'} (Affiche: ${weaknessesHtml.replace(/<[^>]*>/g, '')})`);
 
       tableHtml += `
         <tr>
@@ -375,9 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="pagination-controls">
         <button id="prevPageBtn" class="btn-secondary" ${currentPage === 0 ? 'disabled' : ''}>Précédent</button>
-        <span>Page ${currentPage + 1} sur ${Math.ceil(totalClients / ITEMS_PER_PAGE)}</span>
+        <span id="page-info">Page ${currentPage + 1} sur ${Math.ceil(totalClients / ITEMS_PER_PAGE_GLOBAL)}</span>
         <button id="nextPageBtn" class="btn-secondary" ${endIndex >= totalClients ? 'disabled' : ''}>Suivant</button>
-        ${totalClients > ITEMS_PER_PAGE ? `<button id="showAllBtn" class="btn-secondary">Afficher tout (${totalClients})</button>` : ''}
+        ${totalClients > ITEMS_PER_PAGE_GLOBAL ? `<button id="showAllBtn" class="btn-secondary">Afficher tout (${totalClients})</button>` : ''}
       </div>
     `;
     clientScoringTableContainer.innerHTML = tableHtml;
@@ -386,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
     const showAllBtn = document.getElementById('showAllBtn');
+    const pageInfoSpan = document.getElementById('page-info');
 
     if (prevPageBtn) {
       prevPageBtn.addEventListener('click', () => {
@@ -394,6 +463,16 @@ document.addEventListener('DOMContentLoaded', () => {
           displayClientScoringResults(data);
         }
       });
+      // Montrer les boutons de pagination s'il y a plus d'une page
+      if (Math.ceil(totalClients / ITEMS_PER_PAGE_GLOBAL) > 1) {
+          prevPageBtn.classList.remove('hidden');
+          nextPageBtn.classList.remove('hidden');
+          pageInfoSpan.classList.remove('hidden');
+      } else {
+          prevPageBtn.classList.add('hidden');
+          nextPageBtn.classList.add('hidden');
+          pageInfoSpan.classList.add('hidden');
+      }
     }
 
     if (nextPageBtn) {
@@ -407,27 +486,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (showAllBtn) {
         showAllBtn.addEventListener('click', () => {
-            // Pour afficher tout, nous pouvons ajuster ITEMS_PER_PAGE temporairement
-            // ou recréer le tableau sans pagination.
-            // Une approche simple est de redéfinir la pagination pour inclure tous les éléments.
-            currentPage = 0; // Revenir à la première "page"
-            const originalItemsPerPage = ITEMS_PER_PAGE;
-            // Temporairement, on change la constante pour afficher tout.
-            // C'est une simplification, en production, on passerait une option.
-            ITEMS_PER_PAGE_GLOBAL = totalClients; // Utilisez une variable globale ou repensez la fonction
+            console.log("Bouton 'Afficher tout' cliqué.");
+            currentPage = 0; // Revenir à la première "page" pour l'affichage de tout
+            ITEMS_PER_PAGE_GLOBAL = totalClients; // Ajuste la variable pour afficher tous les éléments
             displayClientScoringResults(data);
-            // Si on veut revenir à la pagination, il faudrait un bouton "Retour à la pagination"
+            showAllBtn.disabled = true; // Désactiver après le clic
+            prevPageBtn.classList.add('hidden'); // Masquer les contrôles de pagination standard
+            nextPageBtn.classList.add('hidden');
+            pageInfoSpan.classList.add('hidden');
         });
+        // Montrer le bouton "Afficher tout" s'il y a plus d'une page au début
+        if (totalClients > 10) { // Si plus que le ITEMS_PER_PAGE par défaut
+            showAllBtn.classList.remove('hidden');
+        } else {
+            showAllBtn.classList.add('hidden');
+        }
     }
 
     // Gestion des boutons "Voir plus" (si une modale ou une autre section de détails existe)
     document.querySelectorAll('.btn-details').forEach(button => {
       button.addEventListener('click', (event) => {
         const clientId = event.target.dataset.clientId;
-        // Implémentez ici la logique pour afficher les détails complets du client
         showMessage(`Afficher les détails pour le client: ${clientId}`, 'info');
-        // Exemple: trouver le client dans lastAnalysisData.predictions_with_details
-        // et afficher une modale avec toutes ses infos brutes.
       });
     });
   }
@@ -471,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
   downloadReportBtn.addEventListener('click', () => {
     if (currentReportPaths.pdf) {
       window.open(`http://localhost:8000/download_report/${currentReportPaths.pdf}`, '_blank');
+      console.log("Tentative de téléchargement du PDF:", currentReportPaths.pdf);
     } else {
       showMessage('Aucun rapport PDF disponible pour le téléchargement.', 'error');
     }
@@ -479,6 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
   downloadCsvBtn.addEventListener('click', () => {
     if (currentReportPaths.csv) {
       window.open(`http://localhost:8000/download_csv/${currentReportPaths.csv}`, '_blank');
+      console.log("Tentative de téléchargement du CSV:", currentReportPaths.csv);
     } else {
       showMessage('Aucun rapport CSV disponible pour le téléchargement.', 'error');
     }
@@ -487,20 +569,12 @@ document.addEventListener('DOMContentLoaded', () => {
   downloadXlsxBtn.addEventListener('click', () => {
     if (currentReportPaths.xlsx) {
       window.open(`http://localhost:8000/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
+      console.log("Tentative de téléchargement du XLSX:", currentReportPaths.xlsx);
     } else {
       showMessage('Aucun rapport XLSX disponible pour le téléchargement.', 'error');
     }
   });
 
-  // Gérer l'affichage du nom du fichier sélectionné
-  fileInput.addEventListener('change', () => {
-    const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Choisir un fichier';
-    const fileLabel = document.querySelector('.file-label');
-    if (fileLabel) {
-      fileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${fileName}`;
-    }
-  });
-
-  // Initialisation: Afficher la première section par défaut
-  document.querySelector('.sidebar-item.active').click();
+  // Initialisation: Vérifier l'état initial du bouton d'analyse
+  checkAnalysisButtonState();
 });

@@ -8,6 +8,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+  <!-- Écran de connexion -->
   <div id="login-screen">
     <div class="login-card">
       <img src="https://placehold.co/80x80/2C3E50/FFFFFF?text=DF" alt="Datafindser Logo" class="login-logo">
@@ -21,6 +22,7 @@
     </div>
   </div>
 
+  <!-- Contenu principal de l'application (initiallement caché) -->
   <div id="app-content" class="hidden">
     <div id="sidebar">
       <div class="sidebar-header">
@@ -38,27 +40,34 @@
         <li><a href="#" class="sidebar-item"><i class="fas fa-key"></i> API</a></li>
         <li><a href="#" class="sidebar-item"><i class="fas fa-graduation-cap"></i> Entraînement Modèle</a></li>
       </ul>
+      <div class="sidebar-footer">
+        <p>&copy; 2024 Datafindser</p>
+      </div>
     </div>
 
+    <!-- Main Content -->
     <div id="main-content">
       <header class="main-header">
         <h1>Datafindser, la solution IA de scoring pour la banque par la banque</h1>
+        <div id="confirmation" class="message hidden"></div> <!-- Assurez-vous que cet élément est ici pour les messages -->
       </header>
 
       <section id="upload-section" class="card main-section fade-in active-section">
         <h2><i class="fas fa-upload icon-title"></i> Analyser un Fichier Client</h2>
         <div class="input-group">
-          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="file-input" />
-          <label for="file-input" class="file-label">
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="file-input" />
+          <label for="fileInput" class="file-label">
             <i class="fas fa-file-upload"></i> Choisir un fichier
           </label>
         </div>
         
         <div class="select-group">
-          <label for="credit-type-select">Type de crédit :</label>
-          <select id="credit-type-select" class="select-field">
+          <label for="creditType">Type de crédit :</label>
+          <select id="creditType" class="select-field">
+            <option value="">Sélectionner un type</option>
             <option value="conso">Consommation</option>
             <option value="immo">Immobilier</option>
+            <option value="auto">Crédit Auto</option>
           </select>
         </div>
 
@@ -68,21 +77,21 @@
         </div>
 
         <div class="button-group">
-          <button id="predict-button" class="btn btn-primary" disabled>
+          <button id="analyzeBtn" class="btn btn-primary" disabled>
             <i class="fas fa-chart-line"></i> Analyser le fichier
           </button>
-          <div id="loading-indicator" class="loading-spinner hidden"></div>
+          <div id="loadingIndicator" class="loading-spinner hidden"></div>
         </div>
         <div id="upload-status" class="message"></div>
 
         <div class="download-buttons-group">
-          <button id="download-pdf-button" class="btn btn-download" disabled>
+          <button id="downloadReportBtn" class="btn btn-download" disabled>
             <i class="fas fa-file-pdf"></i> Télécharger rapport PDF
           </button>
-          <button id="download-csv-button" class="btn btn-download" disabled>
+          <button id="downloadCsvBtn" class="btn btn-download" disabled>
             <i class="fas fa-file-csv"></i> Télécharger résultats CSV
           </button>
-          <button id="download-xlsx-button" class="btn btn-download" disabled>
+          <button id="downloadXlsxBtn" class="btn btn-download" disabled>
             <i class="fas fa-file-excel"></i> Télécharger résultats XLSX
           </button>
         </div>
@@ -91,47 +100,23 @@
       <!-- Nouvelle section dédiée à l'Analyse du Fichier Client -->
       <section id="file-analysis-section" class="card main-section hidden fade-in">
         <h2><i class="fas fa-file-alt icon-title"></i> Analyse du Fichier Client</h2>
-        <div class="metric-content">
-            <h3>Résumé du Fichier</h3>
-            <ul>
-                <li><strong>Nom du fichier:</strong> <span id="summary-filename">N/A</span></li>
-                <li><strong>Taille du fichier:</strong> <span id="summary-filesize">N/A</span></li>
-                <li><strong>Nombre de clients:</strong> <span id="summary-numclients">N/A</span></li>
-                <li><strong>Seuil d'appétence utilisé:</strong> <span id="summary-threshold">N/A</span></li>
-                <li><strong>Clients appétents:</strong> <span id="summary-appetent-clients">N/A</span></li>
-            </ul>
-            <h3>Critères Traités</h3>
-            <ul>
-                <li><strong>Critères pris en charge:</strong> <span id="summary-supported-features">N/A</span></li>
-                <li><strong>Critères ignorés:</strong> <span id="summary-ignored-features">N/A</span></li>
-                <li><strong>Critères manquants (à entraîner):</strong> <span id="summary-missing-features">N/A</span></li>
-            </ul>
+        <div id="fileMetricsContent">
+            <!-- Contenu de l'analyse du fichier client sera inséré ici -->
         </div>
       </section>
 
       <!-- Nouvelle section dédiée à la Performance du Moteur IA -->
       <section id="ia-performance-section" class="card main-section hidden fade-in">
         <h2><i class="fas fa-robot icon-title"></i> Performance du Moteur IA</h2>
-        <div class="metric-content">
-          <h3>Métriques Clés</h3>
-          <ul>
-            <li><strong>Accuracy:</strong> <span id="metric-accuracy">N/A</span></li>
-            <li><strong>Recall (Rappel):</strong> <span id="metric-recall">N/A</span></li>
-            <li><strong>F1-Score:</strong> <span id="metric-f1">N/A</span></li>
-            <li><strong>ROC AUC:</strong> <span id="metric-auc-roc">N/A</span></li>
-          </ul>
-          <h3>Importance des Caractéristiques</h3>
-          <div class="chart-container">
-            <img id="feature-importance-chart" class="chart-image hidden" alt="Graphique d'importance des caractéristiques" />
-            <p id="chart-unavailable" class="hidden">Graphique d'importance des caractéristiques non disponible.</p>
-          </div>
+        <div id="iaMetricsContent">
+          <!-- Les métriques de l'IA seront insérées ici par JS -->
         </div>
       </section>
 
       <!-- Section existante pour les résultats de scoring détaillés par client -->
       <section id="client-scoring-results" class="card main-section hidden fade-in">
         <h2><i class="fas fa-users icon-title"></i> Résultats de Scoring Détaillés par Client</h2>
-        <div id="client-scoring-table-container">
+        <div id="clientScoringTableContainer">
           <table id="predictions-table">
             <thead>
               <tr>
@@ -143,8 +128,10 @@
             </tbody>
           </table>
           <div class="pagination-controls">
-            <button id="show-more-button" class="btn btn-primary hidden">Afficher plus de clients</button>
-            <p id="no-more-clients" class="message info hidden">Tous les clients ont été affichés.</p>
+            <button id="prevPageBtn" class="btn-secondary hidden">Précédent</button>
+            <span id="page-info"></span>
+            <button id="nextPageBtn" class="btn-secondary hidden">Suivant</button>
+            <button id="showAllBtn" class="btn-secondary hidden">Afficher tout</button>
           </div>
         </div>
       </section>
@@ -152,7 +139,9 @@
       <!-- Section existante pour les résultats bruts de prédiction -->
       <section id="raw-predictions-section" class="card main-section hidden fade-in">
         <h2><i class="fas fa-clipboard-list icon-title"></i> Résultats Bruts de Prédiction</h2>
-        <pre id="results-content"></pre>
+        <div id="rawPredictionsContent">
+          <!-- Le contenu brut des prédictions sera inséré ici par JS -->
+        </div>
       </section>
     </div>
   </div>
