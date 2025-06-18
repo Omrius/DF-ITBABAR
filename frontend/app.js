@@ -398,18 +398,31 @@ function displayPredictions(columnKeys) { // Receive the ordered list of column 
         scoreCell.textContent = client.score_appetence ? (client.score_appetence * 100).toFixed(2) + '%' : 'N/A';
         scoreCell.setAttribute('data-label', "Score d'Appétence");
 
+        // --- Correction pour Forces et Faiblesses ---
         const forcesCell = row.insertCell();
-        const forces = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
-        forcesCell.textContent = forces;
+        // Vérifie si c'est une chaîne non vide ou un tableau non vide
+        let forcesText = 'N/A';
+        if (typeof client.observations_forces === 'string' && client.observations_forces.trim() !== '') {
+            forcesText = client.observations_forces;
+        } else if (Array.isArray(client.observations_forces) && client.observations_forces.length > 0) {
+            forcesText = client.observations_forces.join(', ');
+        }
+        forcesCell.textContent = forcesText;
         forcesCell.setAttribute('data-label', "Forces");
-        console.log(`Client ${client.client_identifier || 'N/A'}: Forces -`, client.observations_forces, `(Affiche: ${forces})`);
+        console.log(`Client ${client.client_identifier || 'N/A'}: Forces -`, client.observations_forces, `(Affiche: ${forcesText})`);
 
 
         const weaknessesCell = row.insertCell();
-        const weaknesses = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
-        weaknessesCell.textContent = weaknesses;
+        // Vérifie si c'est une chaîne non vide ou un tableau non vide
+        let weaknessesText = 'N/A';
+        if (typeof client.observations_faiblesses === 'string' && client.observations_faiblesses.trim() !== '') {
+            weaknessesText = client.observations_faiblesses;
+        } else if (Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0) {
+            weaknessesText = client.observations_faiblesses.join(', ');
+        }
+        weaknessesCell.textContent = weaknessesText;
         weaknessesCell.setAttribute('data-label', "Faiblesses");
-        console.log(`Client ${client.client_identifier || 'N/A'}: Faiblesses -`, client.observations_faiblesses, `(Affiche: ${weaknesses})`);
+        console.log(`Client ${client.client_identifier || 'N/A'}: Faiblesses -`, client.observations_faiblesses, `(Affiche: ${weaknessesText})`);
     });
 
     currentPage++;
