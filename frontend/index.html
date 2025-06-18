@@ -1,105 +1,107 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Datafindser - Dashboard</title>
-<link rel="stylesheet" href="style.css" />
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datafindser - Analyse de Crédit</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="sidebar">
-    <div class="sidebar-header">
-      <img src="https://placehold.co/50x50/2C3E50/FFFFFF?text=DF" alt="Datafindser Logo" class="logo">
-      <h2>Datafindser</h2>
+    <!-- Écran de connexion -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <h2>Accès à l'Application</h2>
+            <div class="input-group">
+                <label for="password-input">Mot de passe :</label>
+                <input type="password" id="password-input" placeholder="Entrez le mot de passe">
+            </div>
+            <button id="login-button">Accéder</button>
+            <p id="login-error-message" class="error-message"></p>
+        </div>
     </div>
-    <ul class="sidebar-menu">
-      <li><a href="#" class="sidebar-item active" data-section="upload-section"><i class="fas fa-chart-line"></i> Analyse de Fichier</a></li>
-      <li><a href="#" class="sidebar-item" data-section="ia-performance-section"><i class="fas fa-robot"></i> Performance Moteur IA</a></li>
-      <li><a href="#" class="sidebar-item" data-section="file-analysis-section"><i class="fas fa-file-alt"></i> Analyse Fichier Client</a></li>
-      <li><a href="#" class="sidebar-item" data-section="client-scoring-results"><i class="fas fa-users"></i> Résultats Clients</a></li>
-      <li><a href="#" class="sidebar-item" data-section="raw-predictions-section"><i class="fas fa-code"></i> Prédictions Brutes</a></li>
-      <li><a href="#" class="sidebar-item"><i class="fas fa-user-circle"></i> Profil</a></li>
-      <li><a href="#" class="sidebar-item"><i class="fas fa-cogs"></i> Settings</a></li>
-      <li><a href="#" class="sidebar-item"><i class="fas fa-key"></i> API</a></li>
-      <li><a href="#" class="sidebar-item"><i class="fas fa-graduation-cap"></i> Entraînement Modèle</a></li>
-    </ul>
-  </div>
 
-  <div id="main-content">
-    <header class="main-header">
-      <h1>Datafindser, la solution IA de scoring pour la banque par la banque</h1>
-    </header>
+    <!-- Contenu principal de l'application (initialement masqué) -->
+    <div id="app-content" class="container hidden">
+        <h1>Analyse d'Appétence au Crédit</h1>
+        <p class="subtitle">Scoring de clients pour différents types de crédit</p>
 
-    <section id="upload-section" class="card main-section fade-in">
-      <h2><i class="fas fa-upload icon-title"></i> Analyser un Fichier Client</h2>
-      <div class="input-group">
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="file-input" />
-        <label for="fileInput" class="file-label">
-          <i class="fas fa-file-upload"></i> Choisir un fichier
-        </label>
-      </div>
-      
-      <div class="select-group">
-        <label for="creditType">Type de crédit :</label>
-        <select id="creditType" class="select-field">
-          <option value="conso">Consommation</option>
-          <option value="immo">Immobilier</option>
-        </select>
-      </div>
+        <div class="upload-section">
+            <h2>1. Téléchargez votre fichier client (Excel ou CSV)</h2>
+            <input type="file" id="file-input" accept=".xlsx, .xls, .csv">
+            <div class="form-group">
+                <label for="credit-type-select">Type de Crédit :</label>
+                <select id="credit-type-select">
+                    <option value="conso">Consommation</option>
+                    <option value="immo">Immobilier</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="threshold-input">Seuil d'appétence :</label>
+                <input type="number" id="threshold-input" value="0.5" step="0.01" min="0.01" max="0.99">
+            </div>
+            <button id="predict-button" disabled>Analyser le Fichier</button>
+            <p id="upload-status" class="status-message"></p>
+        </div>
 
-      <div class="button-group">
-        <button id="analyzeBtn" class="btn btn-primary">
-          <i class="fas fa-chart-line"></i> Analyser le fichier
-        </button>
-        <div id="loadingIndicator" class="loading-spinner hidden"></div>
-      </div>
-      <div id="confirmation" class="message"></div>
+        <div class="results-section hidden">
+            <h2>2. Résultats de l'Analyse</h2>
+            <div id="file-analysis-summary" class="analysis-summary">
+                <h3>Résumé du Fichier :</h3>
+                <p><strong>Nom du fichier :</strong> <span id="summary-filename"></span></p>
+                <p><strong>Taille :</strong> <span id="summary-filesize"></span></p>
+                <p><strong>Nombre de clients :</strong> <span id="summary-numclients"></span></p>
+                <p><strong>Clients appétents :</strong> <span id="summary-appetent-clients"></span></p>
+                <p><strong>Seuil utilisé :</strong> <span id="summary-threshold"></span></p>
+                <p><strong>Critères pris en charge :</strong> <span id="summary-supported-features"></span></p>
+                <p><strong>Critères non pris en charge (ignorés) :</strong> <span id="summary-ignored-features"></span></p>
+                <p><strong>Critères manquants (valeurs par défaut utilisées) :</strong> <span id="summary-missing-features"></span></p>
+            </div>
 
-      <div class="download-buttons-group">
-        <button id="downloadReportBtn" class="btn btn-download hidden" disabled>
-          <i class="fas fa-file-pdf"></i> Télécharger rapport PDF
-        </button>
-        <button id="downloadCsvBtn" class="btn btn-download hidden" disabled>
-          <i class="fas fa-file-csv"></i> Télécharger résultats CSV
-        </button>
-        <button id="downloadXlsxBtn" class="btn btn-download hidden" disabled>
-          <i class="fas fa-file-excel"></i> Télécharger résultats XLSX
-        </button>
-      </div>
-    </section>
+            <div id="model-metrics-display" class="model-metrics">
+                <h3>Performance du Modèle (Moteur IA) :</h3>
+                <p><strong>Précision (Accuracy) :</strong> <span id="metric-accuracy"></span></p>
+                <p><strong>Rappel (Recall) :</strong> <span id="metric-recall"></span></p>
+                <p><strong>Score F1 :</strong> <span id="metric-f1"></span></p>
+                <p><strong>AUC-ROC :</strong> <span id="metric-auc-roc"></span></p>
+                <div class="image-container">
+                    <p>Importance des caractéristiques :</p>
+                    <img id="feature-importance-chart" src="" alt="Graphique d'importance des caractéristiques" style="max-width: 100%;">
+                    <p id="chart-unavailable" class="error-message hidden">Graphique non disponible.</p>
+                </div>
+            </div>
 
-    <!-- Nouvelle section dédiée à la Performance du Moteur IA -->
-    <section id="ia-performance-section" class="card main-section hidden fade-in">
-      <h2><i class="fas fa-robot icon-title"></i> Performance du Moteur IA</h2>
-      <div id="iaMetricsContent">
-        <!-- Les métriques de l'IA seront insérées ici par JS -->
-      </div>
-    </section>
+            <h3>Vue Détaillée des Prédictions :</h3>
+            <table id="predictions-table">
+                <thead>
+                    <tr>
+                        <th>ID Client</th>
+                        <th>Âge</th>
+                        <th>Revenu</th>
+                        <th>Enfants</th>
+                        <th>Statut Pro</th>
+                        <th>Ancienneté Client</th>
+                        <th>Crédit Existant (Conso)</th>
+                        <th>Score d'Appétence</th>
+                        <th>Observations (Forces)</th>
+                        <th>Observations (Faiblesses)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Les résultats de prédiction seront insérés ici -->
+                </tbody>
+            </table>
+            <button id="show-more-button">Afficher plus de clients</button>
+            <p id="no-more-clients" class="hidden">Tous les clients sont affichés.</p>
 
-    <!-- Nouvelle section dédiée à l'Analyse du Fichier Client -->
-    <section id="file-analysis-section" class="card main-section hidden fade-in">
-      <h2><i class="fas fa-file-alt icon-title"></i> Analyse du Fichier Client</h2>
-      <div id="fileMetricsContent">
-        <!-- L'analyse du fichier sera insérée ici par JS -->
-      </div>
-    </section>
-
-    <!-- Section existante pour les résultats de scoring détaillés par client -->
-    <section id="client-scoring-results" class="card main-section hidden fade-in">
-      <h2><i class="fas fa-users icon-title"></i> Résultats de Scoring Détaillés par Client</h2>
-      <div id="clientScoringTableContainer">
-        <!-- Le tableau des clients sera inséré ici par JS -->
-      </div>
-    </section>
-
-    <!-- Section existante pour les résultats bruts de prédiction -->
-    <section id="raw-predictions-section" class="card main-section hidden fade-in">
-      <h2><i class="fas fa-clipboard-list icon-title"></i> Résultats Bruts de Prédiction</h2>
-      <pre id="resultsContent"></pre>
-    </section>
-  </div>
-
-<script src="app.js"></script>
+            <div class="download-section">
+                <h3>Télécharger les Rapports :</h3>
+                <button id="download-pdf-button" disabled>Rapport PDF</button>
+                <button id="download-csv-button" disabled>Résultats CSV</button>
+                <button id="download-xlsx-button" disabled>Résultats XLSX</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
 </body>
 </html>

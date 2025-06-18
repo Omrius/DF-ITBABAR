@@ -1,378 +1,284 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const fileInput = document.getElementById('fileInput');
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  const confirmationDiv = document.getElementById('confirmation');
-  const resultsContent = document.getElementById('resultsContent');
-  const creditTypeSelect = document.getElementById('creditType');
-  const downloadReportBtn = document.getElementById('downloadReportBtn');
-  const downloadCsvBtn = document = document.getElementById('downloadCsvBtn');
-  const downloadXlsxBtn = document.getElementById('downloadXlsxBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
+// app.js
+const BACKEND_BASE_URL = 'https://df-itbabar.onrender.com'; // Assurez-vous que cette URL est correcte
 
-  const mainSections = document.querySelectorAll('.main-section');
-  const sidebarItems = document.querySelectorAll('.sidebar-item');
+// --- Éléments de l'écran de connexion ---
+const loginScreen = document.getElementById('login-screen');
+const passwordInput = document.getElementById('password-input');
+const loginButton = document.getElementById('login-button');
+const loginErrorMessage = document.getElementById('login-error-message');
+const appContent = document.getElementById('app-content');
 
-  const iaMetricsContent = document.getElementById('iaMetricsContent');
-  const fileMetricsContent = document.getElementById('fileMetricsContent');
-  const clientScoringTableContainer = document.getElementById('clientScoringTableContainer');
+// --- Éléments de l'application principale ---
+const fileInput = document.getElementById('file-input');
+const creditTypeSelect = document.getElementById('credit-type-select');
+const thresholdInput = document.getElementById('threshold-input');
+const predictButton = document.getElementById('predict-button');
+const uploadStatus = document.getElementById('upload-status');
+const resultsSection = document.querySelector('.results-section');
+const predictionsTableBody = document.querySelector('#predictions-table tbody');
+const showMoreButton = document.getElementById('show-more-button');
+const noMoreClientsMessage = document.getElementById('no-more-clients');
 
-  let currentReportPaths = {};
-  let lastAnalysisData = null;
+// --- Éléments de résumé du fichier ---
+const summaryFilename = document.getElementById('summary-filename');
+const summaryFilesize = document.getElementById('summary-filesize');
+const summaryNumClients = document.getElementById('summary-numclients');
+const summaryAppetentClients = document.getElementById('summary-appetent-clients');
+const summaryThreshold = document.getElementById('summary-threshold');
+const summarySupportedFeatures = document.getElementById('summary-supported-features');
+const summaryIgnoredFeatures = document.getElementById('summary-ignored-features');
+const summaryMissingFeatures = document.getElementById('summary-missing-features');
 
-  // REMPLACER cette URL avec l'URL de votre service Cloud Run déployé
-  // EXEMPLE: const BACKEND_BASE_URL = 'https://your-cloud-run-service-xyz-run.app/';
-  const BACKEND_BASE_URL = 'https://df-itbabar.onrender.com'; // Garder pour le développement local
+// --- Éléments des métriques du modèle ---
+const modelMetricsDisplay = document.getElementById('model-metrics-display');
+const metricAccuracy = document.getElementById('metric-accuracy');
+const metricRecall = document.getElementById('metric-recall');
+const metricF1 = document.getElementById('metric-f1');
+const metricAucRoc = document.getElementById('metric-auc-roc');
+const featureImportanceChart = document.getElementById('feature-importance-chart');
+const chartUnavailable = document.getElementById('chart-unavailable');
+
+// --- Éléments des boutons de téléchargement ---
+const downloadPdfButton = document.getElementById('download-pdf-button');
+const downloadCsvButton = document.getElementById('download-csv-button');
+const downloadXlsxButton = document.getElementById('download-xlsx-button');
 
 
-  // --- Fonctions utilitaires pour les messages ---
-  function showMessage(message, type = 'info') {
-    confirmationDiv.textContent = message;
-    confirmationDiv.className = `message ${type}`;
-    confirmationDiv.style.opacity = '0';
-    setTimeout(() => {
-      confirmationDiv.style.transition = 'opacity 0.5s ease-in-out';
-      confirmationDiv.style.opacity = '1';
-    }, 10);
-  }
+let currentPredictionsData = [];
+let currentPage = 0;
+const ITEMS_PER_PAGE = 10; // Nombre de clients à afficher par clic sur "Afficher plus"
 
-  function clearMessages() {
-    confirmationDiv.textContent = '';
-    confirmationDiv.className = 'message';
-    confirmationDiv.style.opacity = '0';
-    confirmationDiv.style.transition = 'none';
-  }
+// --- Configuration du mot de passe (À CHANGER POUR LA PRODUCTION AVEC UN SYSTÈME SÉCURISÉ) ---
+const CORRECT_PASSWORD = "password123"; // Le mot de passe simple et hardcodé
 
-  function showLoading(show) {
-    if (show) {
-      loadingIndicator.classList.remove('hidden');
-      analyzeBtn.disabled = true;
-      downloadReportBtn.disabled = true;
-      downloadCsvBtn.disabled = true;
-      downloadXlsxBtn.disabled = true;
-      mainSections.forEach(section => section.classList.add('hidden'));
-      iaMetricsContent.innerHTML = '';
-      fileMetricsContent.innerHTML = '';
-      clientScoringTableContainer.innerHTML = '';
-      resultsContent.textContent = '';
-      document.getElementById('upload-section').classList.remove('hidden');
-      sidebarItems.forEach(item => item.classList.remove('active'));
-
+// --- LOGIQUE DE CONNEXION ---
+loginButton.addEventListener('click', () => {
+    const enteredPassword = passwordInput.value;
+    if (enteredPassword === CORRECT_PASSWORD) {
+        loginScreen.classList.add('hidden');
+        appContent.classList.remove('hidden');
+        loginErrorMessage.textContent = ''; // Clear any previous error
     } else {
-      loadingIndicator.classList.add('hidden');
-      analyzeBtn.disabled = false;
+        loginErrorMessage.textContent = 'Mot de passe incorrect. Veuillez réessayer.';
+        passwordInput.value = ''; // Clear the input field
     }
-  }
+});
 
-  // --- Fonction pour gérer l'affichage des sections principales ---
-  function showSection(sectionId) {
-    mainSections.forEach(section => {
-      if (section.id === sectionId) {
-        section.classList.remove('hidden');
-        section.classList.add('active');
-      } else {
-        section.classList.add('hidden');
-        section.classList.remove('active');
-      }
-    });
-
-    sidebarItems.forEach(item => {
-      if (item.dataset.section === sectionId) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-
-    if (lastAnalysisData) {
-      if (sectionId === 'ia-performance-section') {
-        updateIaMetrics(lastAnalysisData.model_metrics);
-      } else if (sectionId === 'file-analysis-section') {
-        updateFileAnalysis(lastAnalysisData.file_analysis);
-      } else if (sectionId === 'client-scoring-results') {
-        updateClientScoringTable(lastAnalysisData.predictions_with_details, lastAnalysisData.file_analysis.colonnes);
-      } else if (sectionId === 'raw-predictions-section') {
-        resultsContent.textContent = JSON.stringify(lastAnalysisData.predictions, null, 2);
-      }
+passwordInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        loginButton.click(); // Trigger login button click on Enter key
     }
-  }
-
-  // Initialisation: Afficher la section d'upload au chargement
-  showSection('upload-section');
+});
 
 
-  // --- Gestion du bouton d'analyse ---
-  analyzeBtn.addEventListener('click', async () => {
-    clearMessages();
-    
-    downloadReportBtn.classList.add('hidden');
-    downloadCsvBtn.classList.add('hidden');
-    downloadXlsxBtn.classList.add('hidden');
-    currentReportPaths = {};
+// --- LOGIQUE DE L'APPLICATION PRINCIPALE (active après connexion) ---
 
-    if (fileInput.files.length === 0) {
-      showMessage('Veuillez sélectionner un fichier.', 'error');
-      return;
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+        predictButton.disabled = false;
+        uploadStatus.textContent = `Fichier sélectionné : ${fileInput.files[0].name}`;
+        uploadStatus.style.color = '#333';
+    } else {
+        predictButton.disabled = true;
+        uploadStatus.textContent = 'Aucun fichier sélectionné.';
+        uploadStatus.style.color = 'red';
     }
+});
 
+predictButton.addEventListener('click', async () => {
     const file = fileInput.files[0];
     const creditType = creditTypeSelect.value;
+    const appetenceThreshold = parseFloat(thresholdInput.value);
+
+    if (!file) {
+        uploadStatus.textContent = 'Veuillez sélectionner un fichier.';
+        uploadStatus.style.color = 'red';
+        return;
+    }
+
+    if (isNaN(appetenceThreshold) || appetenceThreshold <= 0 || appetenceThreshold >= 1) {
+        uploadStatus.textContent = 'Le seuil d\'appétence doit être entre 0.01 et 0.99.';
+        uploadStatus.style.color = 'red';
+        return;
+    }
+
+    uploadStatus.textContent = 'Analyse en cours... Veuillez patienter.';
+    uploadStatus.style.color = 'blue';
+    predictButton.disabled = true;
+    resultsSection.classList.add('hidden'); // Hide results until new ones are ready
+    predictionsTableBody.innerHTML = ''; // Clear previous results
+    currentPage = 0; // Reset pagination
+    showMoreButton.classList.add('hidden');
+    noMoreClientsMessage.classList.add('hidden');
+    featureImportanceChart.classList.add('hidden');
+    chartUnavailable.classList.add('hidden');
+
+    // Désactiver les boutons de téléchargement précédents
+    downloadPdfButton.disabled = true;
+    downloadCsvButton.disabled = true;
+    downloadXlsxButton.disabled = true;
+
     const formData = new FormData();
     formData.append('file', file);
-
-    showMessage('Traitement en cours... Veuillez patienter.', 'info');
-    showLoading(true);
+    formData.append('credit_type', creditType);
+    formData.append('appetence_threshold', appetenceThreshold);
 
     try {
-      const response = await fetch(`${BACKEND_BASE_URL}/predict_aptitude/?credit_type=${creditType}`, {
-        method: 'POST',
-        body: formData,
-      });
+        const response = await fetch(`${BACKEND_BASE_URL}/predict_aptitude/`, {
+            method: 'POST',
+            body: formData,
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorData.detail || response.statusText}`);
-      }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
 
-      const data = await response.json();
-      lastAnalysisData = data;
+        const data = await response.json();
+        uploadStatus.textContent = data.message;
+        uploadStatus.style.color = 'green';
+        predictButton.disabled = false;
+        resultsSection.classList.remove('hidden');
 
-      showMessage('Fichier analysé avec succès. Rapports générés.', 'success');
-      
-      updateIaMetrics(data.model_metrics);
-      updateFileAnalysis(data.file_analysis);
-      updateClientScoringTable(data.predictions_with_details, data.file_analysis.colonnes);
-      resultsContent.textContent = JSON.stringify(data.predictions, null, 2);
+        currentPredictionsData = data.predictions_with_details;
+        displayPredictions(); // Display initial set of predictions
 
-      currentReportPaths = data.report_paths; // Contient maintenant les noms de fichiers temporaires
+        // Update file analysis summary
+        summaryFilename.textContent = data.file_analysis.nom_fichier || 'N/A';
+        summaryFilesize.textContent = data.file_analysis.taille_fichier || 'N/A';
+        summaryNumClients.textContent = data.file_analysis.nombre_lignes || 'N/A';
+        summaryAppetentClients.textContent = data.file_analysis.nombre_clients_appetents || 'N/A';
+        summaryThreshold.textContent = data.file_analysis.seuil_appetence_utilise || 'N/A';
+        summarySupportedFeatures.textContent = data.file_analysis.critères_pris_en_charge ? data.file_analysis.critères_pris_en_charge.join(', ') : 'N/A';
+        summaryIgnoredFeatures.textContent = data.file_analysis.critères_non_pris_en_charge_a_ignorer ? data.file_analysis.critères_non_pris_en_charge_a_ignorer.join(', ') : 'Aucun';
+        summaryMissingFeatures.textContent = data.file_analysis.critères_manquants_a_entrainer ? data.file_analysis.critères_manquants_a_entrainer.join(', ') : 'Aucun';
 
-      // Afficher les boutons de téléchargement si les chemins sont disponibles
-      // Pour Render sans GCS, ces boutons feront une nouvelle requête au backend pour générer et télécharger.
-      if (currentReportPaths.pdf) {
-        downloadReportBtn.classList.remove('hidden');
-        downloadReportBtn.disabled = false;
-      }
-      if (currentReportPaths.csv) {
-        downloadCsvBtn.classList.remove('hidden');
-        downloadCsvBtn.disabled = false;
-      }
-      if (currentReportPaths.xlsx) {
-        downloadXlsxBtn.classList.remove('hidden');
-        downloadXlsxBtn.disabled = false;
-      }
+        // Update model metrics
+        const metrics = data.model_metrics || {};
+        metricAccuracy.textContent = metrics.accuracy ? metrics.accuracy.toFixed(2) : 'N/A';
+        metricRecall.textContent = metrics.recall ? metrics.recall.toFixed(2) : 'N/A';
+        metricF1.textContent = metrics.f1_score ? metrics.f1_score.toFixed(2) : 'N/A';
+        metricAucRoc.textContent = metrics.roc_auc ? metrics.roc_auc.toFixed(2) : 'N/A';
 
-      showSection('client-scoring-results');
+        // Feature importance chart
+        const featureImportanceImage = metrics.feature_importance_image;
+        if (featureImportanceImage) {
+            featureImportanceChart.src = `data:image/png;base64,${featureImportanceImage}`;
+            featureImportanceChart.classList.remove('hidden');
+            chartUnavailable.classList.add('hidden');
+        } else {
+            featureImportanceChart.classList.add('hidden');
+            chartUnavailable.classList.remove('hidden');
+        }
+
+        // Activer les boutons de téléchargement si les chemins sont disponibles
+        if (data.report_paths && data.report_paths.pdf) {
+            downloadPdfButton.disabled = false;
+            downloadPdfButton.dataset.filename = data.report_paths.pdf;
+        } else {
+            downloadPdfButton.disabled = true;
+        }
+        if (data.report_paths && data.report_paths.csv) {
+            downloadCsvButton.disabled = false;
+            downloadCsvButton.dataset.filename = data.report_paths.csv;
+        } else {
+            downloadCsvButton.disabled = true;
+        }
+        if (data.report_paths && data.report_paths.xlsx) {
+            downloadXlsxButton.disabled = false;
+            downloadXlsxButton.dataset.filename = data.report_paths.xlsx;
+        } else {
+            downloadXlsxButton.disabled = true;
+        }
 
     } catch (error) {
-      showMessage(`❌ Erreur lors de l’analyse : ${error.message}`, 'error');
-      resultsContent.textContent = error.toString();
-      console.error("Détail de l'erreur :", error);
-    } finally {
-      showLoading(false);
+        console.error('Détail de l\'erreur :', error);
+        uploadStatus.textContent = `Erreur lors de l'analyse : ${error.message}`;
+        uploadStatus.style.color = 'red';
+        predictButton.disabled = false;
+        resultsSection.classList.add('hidden'); // Hide results section on error
     }
-  });
-
-  // --- Fonctions pour mettre à jour les contenus des métriques ---
-  function updateIaMetrics(metrics) {
-    if (!metrics || Object.keys(metrics).length === 0) {
-      iaMetricsContent.innerHTML = '<p>Métriques de performance non disponibles ou non chargées.</p>';
-      return;
-    }
-
-    let html = '<ul>';
-    html += `<li><strong>Accuracy:</strong> <span>${metrics.accuracy ? metrics.accuracy.toFixed(4) : 'N/A'}</span></li>`;
-    html += `<li><strong>Precision:</strong> <span>${metrics.precision ? metrics.precision.toFixed(4) : 'N/A'}</span></li>`;
-    html += `<li><strong>Recall:</b> <span>${metrics.recall ? metrics.recall.toFixed(4) : 'N/A'}</span></li>`;
-    html += `<li><strong>F1-Score:</strong> <span>${metrics.f1_score ? metrics.f1_score.toFixed(4) : 'N/A'}</span></li>`;
-    html += '</ul>';
-
-    html += `
-      <h3>Définitions des métriques:</h3>
-      <p>
-        <strong>Recall (Rappel):</strong> Mesure la capacité du modèle à identifier toutes les instances positives réelles. C'est la proportion de vrais positifs parmi tous les positifs réels.<br>
-        <em>Formule: VP / (VP + FN)</em>
-      </p>
-      <p>
-        <strong>F1-Score:</strong> Moyenne harmonique de la précision et du rappel. Il atteint sa meilleure valeur à 1 et sa pire à 0, utile pour les classes déséquilibrées.<br>
-        <em>Formule: 2 * (Précision * Rappel) / (Précision + Rappel)</em>
-      </p>
-    `;
-
-    const featureImportances = metrics.feature_importances;
-    if (featureImportances && featureImportances.length > 0) {
-      html += `<h3>Caractéristiques influentes:</h3>`;
-      html += `<div class="feature-importances-list">`;
-      
-      html += `<h4>Top 5 des caractéristiques les plus influentes:</h4>`;
-      for (let i = 0; i < Math.min(5, featureImportances.length); i++) {
-        const [feature, importance] = featureImportances[i];
-        const displayFeatureName = feature.replace(/_/g, ' ').capitalize();
-        html += `<div class="feature-item">
-                   <span>${displayFeatureName}</span>
-                   <div class="feature-bar-container">
-                     <div class="feature-bar" style="width: ${(importance * 100).toFixed(2)}%;"></div>
-                   </div>
-                   <span class="importance-value">${importance.toFixed(4)}</span>
-                 </div>`;
-      }
-
-      if (featureImportances.length > 5) {
-        html += `<h4>Top 5 des caractéristiques les moins influentes:</h4>`;
-        for (let i = Math.max(0, featureImportances.length - 5); i < featureImportances.length; i++) {
-          const [feature, importance] = featureImportances[i];
-          const displayFeatureName = feature.replace(/_/g, ' ').capitalize();
-          html += `<div class="feature-item">
-                     <span>${displayFeatureName}</span>
-                     <div class="feature-bar-container">
-                       <div class="feature-bar" style="width: ${(importance * 100).toFixed(2)}%;"></div>
-                     </div>
-                     <span class="importance-value">${importance.toFixed(4)}</span>
-                   </div>`;
-        }
-      }
-      html += `</div>`;
-    } else {
-        html += '<p>Importances des caractéristiques non disponibles.</p>';
-    }
-
-    iaMetricsContent.innerHTML = html;
-  }
-
-  function updateFileAnalysis(analysis) {
-    if (!analysis || Object.keys(analysis).length === 0) {
-      fileMetricsContent.innerHTML = '<p>Analyse du fichier non disponible.</p>';
-      return;
-    }
-    let html = `
-      <ul>
-        <li><strong>Nom du fichier:</strong> <span>${analysis.nom_fichier || 'N/A'}</span></li>
-        <li><strong>Taille du fichier:</strong> <span>${analysis.taille_fichier || 'N/A'}</span></li>
-        <li><strong>Nombre de lignes:</strong> <span>${analysis.nombre_lignes || 'N/A'}</span></li>
-        <li><strong>Nombre de colonnes:</strong> <span>${analysis.nombre_colonnes || 'N/A'}</span></li>
-        <li><strong>Colonnes originales:</strong> <span>${(analysis.colonnes && analysis.colonnes.join(', ')) || 'N/A'}</span></li>
-        <li><strong>Clients appétents:</strong> <span>${analysis.nombre_clients_appetents !== undefined ? analysis.nombre_clients_appetents : '0'} (seuil > ${analysis.seuil_appetence_utilise !== undefined ? analysis.seuil_appetence_utilise : '0.5'})</span></li>
-      </ul>
-      <h3>Critères traités par le modèle:</h3>
-      <ul>
-        <li><strong>Pris en charge:</strong> <span>${(analysis.critères_pris_en_charge && analysis.critères_pris_en_charge.join(', ')) || 'Aucun'}</span></li>
-        <li><strong>Non pris en charge (ignorés):</strong> <span>${(analysis.critères_non_pris_en_charge_a_ignorer && analysis.critères_non_pris_en_charge_a_ignorer.join(', ')) || 'Aucun'}</span></li>
-        <li><strong>Manquants (à entraîner):</b> <span>${(analysis.critères_manquants_a_entrainer && analysis.critères_manquants_a_entrainer.join(', ')) || 'Aucun'}</span></li>
-      </ul>
-      <h3>Types de données:</h3>
-      <ul>
-    `;
-    for (const col in analysis.types_donnees) {
-      html += `<li><strong>${col}:</strong> <span>${analysis.types_donnees[col]}</span></li>`;
-    }
-    html += `</ul>
-      <h3>Valeurs manquantes (par colonne):</h3>
-      <ul>
-    `;
-    for (const col in analysis.valeurs_manquantes) {
-      html += `<li><strong>${col}:</strong> <span>${analysis.valeurs_manquantes[col]}</span></li>`;
-    }
-    html += `</ul>
-      <h3>Résumé statistique:</h3>
-      <pre>${JSON.stringify(analysis.resume_statistique, null, 2) || 'N/A'}</pre>
-    `;
-    fileMetricsContent.innerHTML = html;
-  }
-
-  function updateClientScoringTable(predictionsWithDetails, originalColumns) {
-    if (!predictionsWithDetails || predictionsWithDetails.length === 0) {
-      clientScoringTableContainer.innerHTML = '<p>Aucun résultat de scoring détaillé disponible.</p>';
-      return;
-    }
-
-    let tableHtml = '<table><thead><tr>';
-    const displayOriginalCols = ['client_identifier', 'age', 'revenu', 'nb_enfants', 'statut_pro', 'anciennete_client_annees', 'credit_existant_conso'];
-    let headerCols = [];
-    
-    if (predictionsWithDetails.length > 0) {
-        const firstClient = predictionsWithDetails[0];
-        for (const col of displayOriginalCols) {
-            if (firstClient.original_data && firstClient.original_data[col] !== undefined) {
-                headerCols.push(col);
-                const displayHeader = col === 'client_identifier' ? 'Client' : col.replace(/_/g, ' ').capitalize();
-                tableHtml += `<th data-label="${displayHeader}">${displayHeader}</th>`;
-            }
-        }
-    }
-
-    tableHtml += `
-      <th data-label="Score d'Appétence">Score d'Appétence</th>
-      <th data-label="Forces">Forces</th>
-      <th data-label="Faiblesses">Faiblesses</th>
-    </tr></thead><tbody>`;
-
-    predictionsWithDetails.forEach((client, index) => {
-      tableHtml += '<tr>';
-      for (const col of headerCols) {
-          let value = client.original_data[col] !== undefined ? client.original_data[col] : 'N/A';
-          if (typeof value === 'boolean') {
-              value = value ? 'Oui' : 'Non';
-          }
-          tableHtml += `<td data-label="${col.replace(/_/g, ' ').capitalize()}">${value}</td>`;
-      }
-
-      tableHtml += `<td data-label="Score d'Appétence">${client.score_appetence ? client.score_appetence.toFixed(4) : 'N/A'}</td>`;
-      tableHtml += `<td data-label="Forces">${client.observations_forces || 'N/A'}</td>`;
-      tableHtml += `<td data-label="Faiblesses">${client.observations_faiblesses || 'N/A'}</td>`;
-      tableHtml += '</tr>';
-    });
-
-    tableHtml += '</tbody></table>';
-    clientScoringTableContainer.innerHTML = tableHtml;
-  }
-
-
-  // --- Logique de navigation de la barre latérale ---
-  sidebarItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const sectionId = item.dataset.section;
-      if (sectionId) {
-        showSection(sectionId);
-      }
-    });
-  });
-
-  // --- Gestion du téléchargement des rapports ---
-  downloadReportBtn.addEventListener('click', () => {
-    if (currentReportPaths.pdf) {
-      // Lance une nouvelle requête au backend qui va générer le PDF et le renvoyer.
-      window.open(`${BACKEND_BASE_URL}/download_report/${currentReportPaths.pdf}`, '_blank');
-    } else {
-      showMessage('Aucun rapport PDF disponible pour le téléchargement. Veuillez relancer une analyse.', 'error');
-    }
-  });
-
-  downloadCsvBtn.addEventListener('click', () => {
-    if (currentReportPaths.csv) {
-      window.open(`${BACKEND_BASE_URL}/download_csv/${currentReportPaths.csv}`, '_blank');
-    } else {
-      showMessage('Aucun rapport CSV disponible pour le téléchargement. Veuillez relancer une analyse.', 'error');
-    }
-  });
-
-  downloadXlsxBtn.addEventListener('click', () => {
-    if (currentReportPaths.xlsx) {
-      window.open(`${BACKEND_BASE_URL}/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
-    } else {
-      showMessage('Aucun rapport XLSX disponible pour le téléchargement. Veuillez relancer une analyse.', 'error');
-    }
-  });
-
-  // Gérer l'affichage du nom du fichier sélectionné
-  fileInput.addEventListener('change', () => {
-    const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Choisir un fichier';
-    const fileLabel = document.querySelector('.file-label');
-    if (fileLabel) {
-      fileLabel.innerHTML = `<i class="fas fa-file-upload"></i> ${fileName}`;
-    }
-  });
-
-  // Helper function for capitalizing first letter of each word (for display)
-  String.prototype.capitalize = function() {
-    return this.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
-  };
 });
+
+showMoreButton.addEventListener('click', displayPredictions);
+
+function displayPredictions() {
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const clientsToDisplay = currentPredictionsData.slice(startIndex, endIndex);
+
+    if (clientsToDisplay.length === 0) {
+        showMoreButton.classList.add('hidden');
+        noMoreClientsMessage.classList.remove('hidden');
+        return;
+    }
+
+    clientsToDisplay.forEach(client => {
+        const row = predictionsTableBody.insertRow();
+        
+        // Ensure all expected columns are present, using 'N/A' for missing ones
+        const originalData = client.original_data || {};
+        const clientIdentifier = originalData.client_identifier !== undefined && originalData.client_identifier !== null ? originalData.client_identifier : 'N/A';
+        const age = originalData.age !== undefined && originalData.age !== null ? originalData.age : 'N/A';
+        const revenu = originalData.revenu !== undefined && originalData.revenu !== null ? originalData.revenu : 'N/A';
+        const nbEnfants = originalData.nb_enfants !== undefined && originalData.nb_enfants !== null ? originalData.nb_enfants : 'N/A';
+        const statutPro = originalData.statut_pro !== undefined && originalData.statut_pro !== null ? originalData.statut_pro : 'N/A';
+        const ancienneteClientAnnees = originalData.anciennete_client_annees !== undefined && originalData.anciennete_client_annees !== null ? originalData.anciennete_client_annees : 'N/A';
+        const creditExistantConso = originalData.credit_existant_conso !== undefined && originalData.credit_existant_conso !== null ? (originalData.credit_existant_conso ? 'Oui' : 'Non') : 'N/A';
+        
+        row.insertCell().textContent = clientIdentifier;
+        row.insertCell().textContent = age;
+        row.insertCell().textContent = revenu;
+        row.insertCell().textContent = nbEnfants;
+        row.insertCell().textContent = statutPro;
+        row.insertCell().textContent = ancienneteClientAnnees;
+        row.insertCell().textContent = creditExistantConso;
+        row.insertCell().textContent = (client.score_appetence * 100).toFixed(2) + '%';
+        row.insertCell().textContent = client.observations_forces.join(', ') || 'N/A';
+        row.insertCell().textContent = client.observations_faiblesses.join(', ') || 'N/A';
+    });
+
+    currentPage++;
+    if (endIndex >= currentPredictionsData.length) {
+        showMoreButton.classList.add('hidden');
+        noMoreClientsMessage.classList.remove('hidden');
+    } else {
+        showMoreButton.classList.remove('hidden');
+        noMoreClientsMessage.classList.add('hidden');
+    }
+}
+
+
+// --- Fonctions de téléchargement des rapports ---
+downloadPdfButton.addEventListener('click', () => downloadReport('pdf'));
+downloadCsvButton.addEventListener('click', () => downloadReport('csv'));
+downloadXlsxButton.addEventListener('click', () => downloadReport('xlsx'));
+
+async function downloadReport(type) {
+    const filename = event.target.dataset.filename;
+    if (!filename) {
+        alert('Nom de fichier non défini pour le téléchargement.');
+        return;
+    }
+    const downloadURL = `${BACKEND_BASE_URL}/download_${type}/${filename}`;
+    try {
+        const response = await fetch(downloadURL);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erreur de téléchargement: ${response.status} - ${errorText}`);
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error(`Erreur lors du téléchargement du rapport ${type}:`, error);
+        alert(`Échec du téléchargement du rapport ${type}. Veuillez réessayer. Détail: ${error.message}`);
+    }
+}
+
