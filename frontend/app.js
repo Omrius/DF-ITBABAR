@@ -166,8 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadXlsxBtn.disabled = true;
 
     try {
-      // MODIFICATION ICI : Utilisation de chemins relatifs pour les requêtes API
-      const response = await fetch('/analyze', { // Chemin relatif pour l'API
+      // Utilisation de chemins relatifs pour les requêtes API (adapté à Render)
+      const response = await fetch('/analyze', {
         method: 'POST',
         body: formData,
       });
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentReportPaths = data.report_paths || {};
       console.log('Chemins de rapport reçus:', currentReportPaths);
 
-      // MODIFICATION ICI : Utilisation de window.location.origin pour les téléchargements
+      // Utilisation de window.location.origin pour les téléchargements (adapté à Render)
       if (currentReportPaths.pdf && currentReportPaths.pdf !== '') {
         downloadReportBtn.disabled = false;
         console.log('PDF path found, button enabled:', currentReportPaths.pdf);
@@ -367,4 +367,227 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="metric-value">${metrics.processed_columns_count}</p>
           <span class="metric-description">Nombre de colonnes utilisées dans le modèle.</span>
         </div>
-        <div class="metric-car
+        <div class="metric-card">
+          <i class="fas fa-times-circle metric-icon"></i>
+          <h3>Colonnes Ignorées</h3>
+          <p class="metric-value">${metrics.ignored_columns_count}</p>
+          <span class="metric-description">Nombre de colonnes non utilisées (doublons, non pertinentes).</span>
+        </div>
+        ${ignoredFeaturesHtml}
+      </div>
+    `;
+  }
+
+  // --- Affichage des résultats de scoring détaillés par client avec pagination ---
+  function displayClientScoringResults(data) {
+    if (!data || !data.predictions_with_details || data.predictions_with_details.length === 0) {
+      clientScoringTableContainer.innerHTML = `<p class="message info">Aucun résultat de scoring détaillé disponible.</p>`;
+      return;
+    }
+
+    const totalClients = data.predictions_with_details.length;
+    const startIndex = currentPage * ITEMS_PER_PAGE_GLOBAL;
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE_GLOBAL, totalClients);
+    const clientsToDisplay = data.predictions_with_details.slice(startIndex, endIndex);
+
+    let tableHtml = `
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Score de Crédit</th>
+              <th>Appétence</th>
+              <th>Probabilité</th>
+              <th>Seuil</th>
+              <th>Forces</th>
+              <th>Faiblesses</th>
+              <th>Stratégie Recommandée</th>
+              <th>Détails</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    clientsToDisplay.forEach((client, index) => {
+      // Adjusted clientName logic: use client.client_identifier if not 'N/A' or empty, else fallback to 'Client N'
+      const clientName = (client.client_identifier && client.client_identifier.toUpperCase() !== 'N/A') ? client.client_identifier : `Client ${startIndex + index + 1}`;
+      
+      const appetenceClass = client.appetence_prediction === 'Oui' ? 'appetence-oui' : 'appetence-non';
+      const scoreClass = client.credit_score === 'Faible' ? 'score-faible' : client.credit_score === 'Moyen' ? 'score-moyen' : 'score-eleve';
+      
+      // Ensure forces and weaknesses are arrays before mapping
+      const forcesHtml = Array.isArray(client.forces) && client.forces.length > 0
+        ? `<ul class="list-forces">${client.forces.map(f => `<li>${f}</li>`).join('')}</ul>`
+        : 'N/A';
+      const weaknessesHtml = Array.isArray(client.weaknesses) && client.weaknesses.length > 0
+        ? `<ul class="list-weaknesses">${client.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>`
+        : 'N/A';
+
+      tableHtml += `
+        <tr>
+          <td>${clientName}</td>
+          <td class="${scoreClass}">${client.credit_score}</td>
+          <td class="${appetenceClass}">${client.appetence_prediction}</td>
+          <td>${(client.probability * 100).toFixed(2)}%</td>
+          <td>${(client.threshold).toFixed(3)}</td>
+          <td>${forcesHtml}</td>
+          <td>${weaknessesHtml}</td>
+          <td>${client.recommended_strategy || 'N/A'}</td>
+          <td><button class="btn-details" data-client-id="${clientName}">Voir plus</button></td>
+        </tr>
+      `;
+    });
+
+    tableHtml += `
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-controls">
+        <button id="prevPageBtn" class="btn-secondary" ${currentPage === 0 ? 'disabled' : ''}>Précédent</button>
+        <span id="page-info">Page ${currentPage + 1} sur ${Math.ceil(totalClients / ITEMS_PER_PAGE_GLOBAL)}</span>
+        <button id="nextPageBtn" class="btn-secondary" ${endIndex >= totalClients ? 'disabled' : ''}>Suivant</button>
+        ${totalClients > ITEMS_PER_PAGE_GLOBAL ? `<button id="showAllBtn" class="btn-secondary">Afficher tout (${totalClients})</button>` : ''}
+      </div>
+    `;
+    clientScoringTableContainer.innerHTML = tableHtml;
+
+    // Attacher les écouteurs d'événements pour la pagination
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const showAllBtn = document.getElementById('showAllBtn');
+    const pageInfoSpan = document.getElementById('page-info');
+
+    if (prevPageBtn) {
+      prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 0) {
+          currentPage--;
+          displayClientScoringResults(data);
+        }
+      });
+      // Montrer les boutons de pagination s'il y a plus d'une page
+      if (Math.ceil(totalClients / ITEMS_PER_PAGE_GLOBAL) > 1 && ITEMS_PER_PAGE_GLOBAL !== totalClients) {
+          prevPageBtn.classList.remove('hidden');
+          nextPageBtn.classList.remove('hidden');
+          pageInfoSpan.classList.remove('hidden');
+      } else {
+          prevPageBtn.classList.add('hidden');
+          nextPageBtn.classList.add('hidden');
+          pageInfoSpan.classList.add('hidden');
+      }
+    }
+
+    if (nextPageBtn) {
+      nextPageBtn.addEventListener('click', () => {
+        if (endIndex < totalClients) {
+          currentPage++;
+          displayClientScoringResults(data);
+        }
+      });
+    }
+
+    if (showAllBtn) {
+        // Condition pour afficher le bouton "Afficher tout" seulement si toutes les données ne sont pas déjà affichées
+        if (totalClients > ITEMS_PER_PAGE_GLOBAL || (ITEMS_PER_PAGE_GLOBAL === totalClients && totalClients > 10)) { // Si plus que le ITEMS_PER_PAGE par défaut ou si affichage tout est actif pour >10 éléments
+            showAllBtn.classList.remove('hidden');
+        } else {
+            showAllBtn.classList.add('hidden');
+        }
+
+        showAllBtn.addEventListener('click', () => {
+            console.log("Bouton 'Afficher tout' cliqué.");
+            currentPage = 0; // Revenir à la première "page" pour l'affichage de tout
+            ITEMS_PER_PAGE_GLOBAL = totalClients; // Ajuste la variable pour afficher tous les éléments
+            displayClientScoringResults(data); // Rappelle la fonction avec le nouveau réglage
+            // Après avoir affiché tout, masquez les boutons de pagination et le bouton "Afficher tout" lui-même
+            const prev = document.getElementById('prevPageBtn');
+            const next = document.getElementById('nextPageBtn');
+            const info = document.getElementById('page-info');
+            if(prev) prev.classList.add('hidden');
+            if(next) next.classList.add('hidden');
+            if(info) info.classList.add('hidden');
+            showAllBtn.classList.add('hidden'); // Désactive ce bouton une fois cliqué
+        });
+    }
+
+    // Gestion des boutons "Voir plus" (si une modale ou une autre section de détails existe)
+    document.querySelectorAll('.btn-details').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const clientId = event.target.dataset.clientId;
+        showMessage(`Afficher les détails pour le client: ${clientId}`, 'info');
+      });
+    });
+  }
+
+  // --- Affichage des résultats bruts de prédiction ---
+  function displayRawPredictions(rawPredictions) {
+      if (!rawPredictions || rawPredictions.length === 0) {
+          rawPredictionsContent.innerHTML = `<p class="message info">Aucun résultat brut de prédiction disponible.</p>`;
+          return;
+      }
+
+      let rawHtml = `
+          <div class="table-responsive">
+              <table class="data-table">
+                  <thead>
+                      <tr>
+                          <!-- Créer les entêtes de colonnes dynamiquement à partir du premier objet -->
+                          ${Object.keys(rawPredictions[0]).map(key => `<th>${key}</th>`).join('')}
+                      </tr>
+                  </thead>
+                  <tbody>
+      `;
+
+      rawPredictions.forEach(row => {
+          rawHtml += `<tr>`;
+          Object.values(row).forEach(value => {
+              rawHtml += `<td>${value}</td>`;
+          });
+          rawHtml += `</tr>`;
+      });
+
+      rawHtml += `
+                  </tbody>
+              </table>
+          </div>
+      `;
+      rawPredictionsContent.innerHTML = rawHtml;
+  }
+
+  // --- Gestion des boutons de téléchargement des rapports ---
+  downloadReportBtn.addEventListener('click', () => {
+    if (currentReportPaths.pdf) {
+      // Utilisation de window.location.origin pour construire l'URL complète
+      window.open(`${window.location.origin}/download_report/${currentReportPaths.pdf}`, '_blank');
+      console.log("Tentative de téléchargement du PDF:", `${window.location.origin}/download_report/${currentReportPaths.pdf}`);
+    } else {
+      showMessage('Aucun rapport PDF disponible pour le téléchargement.', 'error');
+    }
+  });
+
+  downloadCsvBtn.addEventListener('click', () => {
+    if (currentReportPaths.csv) {
+      // Utilisation de window.location.origin pour construire l'URL complète
+      window.open(`${window.location.origin}/download_csv/${currentReportPaths.csv}`, '_blank');
+      console.log("Tentative de téléchargement du CSV:", `${window.location.origin}/download_csv/${currentReportPaths.csv}`);
+    } else {
+      showMessage('Aucun rapport CSV disponible pour le téléchargement.', 'error');
+    }
+  });
+
+  downloadXlsxBtn.addEventListener('click', () => {
+    if (currentReportPaths.xlsx) {
+      // Utilisation de window.location.origin pour construire l'URL complète
+      window.open(`${window.location.origin}/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
+      console.log("Tentative de téléchargement du XLSX:", `${window.location.origin}/download_xlsx/${currentReportPaths.xlsx}`);
+    } else {
+      showMessage('Aucun rapport XLSX disponible pour le téléchargement.', 'error');
+    }
+  });
+
+  // Initialisation: Vérifier l'état initial du bouton d'analyse
+  checkAnalysisButtonState();
+}); // Cette accolade et parenthèse finale ferment le document.addEventListener('DOMContentLoaded', ...)
+
+// Un simple log pour confirmer que le script a été entièrement analysé et exécuté
+console.log("Le script app.js a été entièrement chargé et exécuté.");
