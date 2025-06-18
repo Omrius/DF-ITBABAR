@@ -49,7 +49,7 @@ let currentPage = 0;
 const ITEMS_PER_PAGE = 10; // Nombre de clients à afficher par clic sur "Afficher plus"
 
 // --- Configuration du mot de passe (À CHANGER POUR LA PRODUCTION AVEC UN SYSTÈME SÉCURISÉ) ---
-const CORRECT_PASSWORD = "passwordfitbabar062525"; // Le mot de passe simple et hardcodé
+const CORRECT_PASSWORD = "passwordfitbabar062525"; // Assurez-vous que c'est le mot de passe que vous voulez
 
 // --- LOGIQUE DE CONNEXION ---
 loginButton.addEventListener('click', () => {
@@ -234,8 +234,10 @@ function displayPredictions() {
         row.insertCell().textContent = ancienneteClientAnnees;
         row.insertCell().textContent = creditExistantConso;
         row.insertCell().textContent = (client.score_appetence * 100).toFixed(2) + '%';
-        row.insertCell().textContent = client.observations_forces.join(', ') || 'N/A';
-        row.insertCell().textContent = client.observations_faiblesses.join(', ') || 'N/A';
+        
+        // CORRECTION ICI : Vérifier si c'est un tableau avant d'utiliser .join()
+        row.insertCell().textContent = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
+        row.insertCell().textContent = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
     });
 
     currentPage++;
@@ -281,4 +283,3 @@ async function downloadReport(type) {
         alert(`Échec du téléchargement du rapport ${type}. Veuillez réessayer. Détail: ${error.message}`);
     }
 }
-
