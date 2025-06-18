@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('appetence_threshold', appetenceThreshold);
 
         try {
-          const response = await fetch('http://localhost:8000/predict_aptitude/', { // URL pour le backend local
+          const response = await fetch('https://df-itbabar-1.onrender.com/', { // URL pour le backend local
             method: 'POST',
             body: formData,
           });
