@@ -64,13 +64,25 @@ document.addEventListener('DOMContentLoaded', () => {
       loginScreen.classList.add('hidden');
       appContent.classList.remove('hidden');
       console.log("Connexion réussie. Affichage du contenu de l'application.");
-      // Afficher la première section du tableau de bord par défaut
-      const firstSidebarItem = document.querySelector('.sidebar-item.active');
-      if (firstSidebarItem) {
-        firstSidebarItem.click(); // Simule un clic pour afficher la section
+      
+      // Afficher la première section du tableau de bord par défaut (upload-section)
+      const uploadSection = document.getElementById('upload-section');
+      if (uploadSection) {
+          uploadSection.classList.remove('hidden');
+          uploadSection.classList.add('fade-in'); // Appliquer l'animation de fondu
+          console.log("Section 'upload-section' affichée après connexion.");
       } else {
-        console.warn("Aucun élément actif de la barre latérale trouvé pour l'initialisation.");
+          console.warn("Section 'upload-section' introuvable.");
       }
+
+      // Définir le premier élément de la barre latérale comme actif
+      const firstSidebarItem = document.querySelector('.sidebar-item[data-section="upload-section"]');
+      if (firstSidebarItem) {
+          firstSidebarItem.classList.add('active');
+      } else {
+          console.warn("L'élément de la barre latérale pour 'upload-section' n'a pas été trouvé.");
+      }
+
     } else {
       loginErrorMessage.textContent = 'Mot de passe incorrect. Veuillez réessayer.';
       loginErrorMessage.classList.remove('hidden');
@@ -117,11 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
       mainSections.forEach(section => {
         if (section.id === targetSectionId) {
           section.classList.remove('hidden');
-          // Utilisation d'un petit délai pour s'assurer que 'hidden' est retiré avant d'ajouter 'fade-in'
-          setTimeout(() => section.classList.add('fade-in'), 10);
+          section.classList.add('fade-in'); // Appliquer l'animation de fondu
           console.log(`Affichage de la section: ${section.id}`);
         } else {
-          section.classList.remove('fade-in');
+          section.classList.remove('fade-in'); // S'assurer que le fondu disparaît avant de cacher
           section.classList.add('hidden');
           console.log(`Masquage de la section: ${section.id}`);
         }
@@ -173,8 +184,17 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Erreur lors de l\'analyse du fichier.');
+        // Tenter de lire le corps de l'erreur si disponible, sinon utiliser le statut
+        let errorMessage = `Erreur HTTP: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.detail || JSON.stringify(errorData);
+        } catch (jsonError) {
+            // Si la réponse n'est pas du JSON valide, utiliser le texte brut si possible
+            const textError = await response.text();
+            errorMessage = `Erreur serveur: ${response.status} - ${textError.substring(0, 200)}...`; // Limiter pour éviter les longs messages
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -411,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clientsToDisplay.forEach((client, index) => {
       // Adjusted clientName logic: use client.client_identifier if not 'N/A' or empty, else fallback to 'Client N'
-      const clientName = (client.client_identifier && client.client_identifier.toUpperCase() !== 'N/A') ? client.client_identifier : `Client ${startIndex + index + 1}`;
+      const clientName = (client.client_identifier && client.client_identifier.toUpperCase() !== 'N/A' && client.client_identifier.trim() !== '') ? client.client_identifier : `Client ${startIndex + index + 1}`;
       
       const appetenceClass = client.appetence_prediction === 'Oui' ? 'appetence-oui' : 'appetence-non';
       const scoreClass = client.credit_score === 'Faible' ? 'score-faible' : client.credit_score === 'Moyen' ? 'score-moyen' : 'score-eleve';
@@ -554,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rawPredictionsContent.innerHTML = rawHtml;
   }
 
-  // --- Gestion des boutons de téléchargement des rapports ---
+  // --- Gestion des boutons de téléchargement des rapports ---\
   downloadReportBtn.addEventListener('click', () => {
     if (currentReportPaths.pdf) {
       // Utilisation de window.location.origin pour construire l'URL complète
