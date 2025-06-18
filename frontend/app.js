@@ -217,23 +217,30 @@ predictButton.addEventListener('click', async () => {
         updateClientScoringTable(data.predictions_with_details);
         resultsContent.textContent = JSON.stringify(data.predictions, null, 2); // Update raw content
 
+        // --- Débogage pour les chemins de rapport ---
+        console.log("Chemins de rapport reçus:", data.report_paths);
+        
         // Enable download buttons if paths are available
         if (data.report_paths) {
             if (data.report_paths.pdf) {
                 downloadPdfButton.disabled = false;
                 downloadPdfButton.dataset.filename = data.report_paths.pdf;
+                console.log("PDF path found, button enabled:", data.report_paths.pdf);
             } else {
                 downloadPdfButton.disabled = true;
+                console.log("PDF path not found or empty, button disabled.");
             }
             if (data.report_paths.csv) {
                 downloadCsvButton.disabled = false;
                 downloadCsvButton.dataset.filename = data.report_paths.csv;
+                console.log("CSV path found, button enabled:", data.report_paths.csv);
             } else {
                 downloadCsvButton.disabled = true;
             }
             if (data.report_paths.xlsx) {
                 downloadXlsxButton.disabled = false;
                 downloadXlsxButton.dataset.filename = data.report_paths.xlsx;
+                console.log("XLSX path found, button enabled:", data.report_paths.xlsx);
             } else {
                 downloadXlsxButton.disabled = true;
             }
@@ -241,6 +248,7 @@ predictButton.addEventListener('click', async () => {
              downloadPdfButton.disabled = true;
              downloadCsvButton.disabled = true;
              downloadXlsxButton.disabled = true;
+             console.log("No report_paths object received, all download buttons disabled.");
         }
 
         // After successful analysis, automatically show client results
@@ -391,12 +399,17 @@ function displayPredictions(columnKeys) { // Receive the ordered list of column 
         scoreCell.setAttribute('data-label', "Score d'Appétence");
 
         const forcesCell = row.insertCell();
-        forcesCell.textContent = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
+        const forces = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
+        forcesCell.textContent = forces;
         forcesCell.setAttribute('data-label', "Forces");
+        console.log(`Client ${client.client_identifier || 'N/A'}: Forces -`, client.observations_forces, `(Affiche: ${forces})`);
+
 
         const weaknessesCell = row.insertCell();
-        weaknessesCell.textContent = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
+        const weaknesses = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
+        weaknessesCell.textContent = weaknesses;
         weaknessesCell.setAttribute('data-label', "Faiblesses");
+        console.log(`Client ${client.client_identifier || 'N/A'}: Faiblesses -`, client.observations_faiblesses, `(Affiche: ${weaknesses})`);
     });
 
     currentPage++;
@@ -530,15 +543,16 @@ downloadXlsxButton.addEventListener('click', (event) => downloadReport('xlsx', e
 async function downloadReport(type, event) {
     const filename = event.target.dataset.filename;
     if (!filename) {
-        showMessage('Nom de fichier non défini pour le téléchargement.', 'error');
+        showMessage(`Nom de fichier non défini pour le téléchargement ${type}.`, 'error');
         return;
     }
     const downloadURL = `${BACKEND_BASE_URL}/download_${type}/${filename}`;
+    console.log(`Tentative de téléchargement de : ${downloadURL}`);
     try {
         const response = await fetch(downloadURL);
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Download error: ${response.status} - ${errorText}`);
+            throw new Error(`Erreur de téléchargement: ${response.status} - ${errorText}`);
         }
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -549,8 +563,9 @@ async function downloadReport(type, event) {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        showMessage(`Rapport ${type.toUpperCase()} téléchargé avec succès !`, 'success');
     } catch (error) {
-        console.error(`Error downloading ${type} report:`, error);
+        console.error(`Erreur lors du téléchargement du rapport ${type}:`, error);
         showMessage(`Échec du téléchargement du rapport ${type}. Veuillez réessayer. Détail : ${error.message}`, 'error');
     }
 }
