@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginErrorMessage = document.getElementById('login-error-message');
   const appContent = document.getElementById('app-content');
 
-  // Éléments du tableau de bord (renommés pour correspondre à index.html)
+  // Éléments du tableau de bord
   const fileInput = document.getElementById('fileInput');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const confirmationDiv = document.getElementById('confirmation');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const downloadCsvBtn = document.getElementById('downloadCsvBtn');
   const downloadXlsxBtn = document.getElementById('downloadXlsxBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
-  const thresholdInput = document.getElementById('threshold-input'); // Ajouté pour le seuil
+  const thresholdInput = document.getElementById('threshold-input');
 
   // Nouvelle structure pour les sections de contenu principal
   const mainSections = document.querySelectorAll('.main-section');
@@ -55,6 +55,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Affiche la section spécifiée et masque toutes les autres.
+   * @param {string} sectionId L'ID de la section à afficher.
+   */
+  function showSection(sectionId) {
+    console.log(`Tentative d'affichage de la section: ${sectionId}`);
+    mainSections.forEach(section => {
+      if (section.id === sectionId) {
+        section.classList.remove('hidden');
+        // Force un "reflow" pour s'assurer que l'animation fadeIn se déclenche
+        void section.offsetHeight; 
+        section.classList.add('fade-in');
+        console.log(`Section '${section.id}' affichée et animation 'fade-in' appliquée.`);
+      } else {
+        section.classList.remove('fade-in'); // Retirer la classe fade-in pour réinitialiser
+        section.classList.add('hidden');
+        console.log(`Section '${section.id}' masquée.`);
+      }
+    });
+
+    // Mettre à jour l'état actif dans la barre latérale
+    sidebarItems.forEach(sItem => sItem.classList.remove('active'));
+    const activeSidebarItem = document.querySelector(`.sidebar-item[data-section="${sectionId}"]`);
+    if (activeSidebarItem) {
+      activeSidebarItem.classList.add('active');
+    }
+  }
+
   // --- Logique de connexion ---
   loginButton.addEventListener('click', () => {
     const password = passwordInput.value;
@@ -65,23 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
       appContent.classList.remove('hidden');
       console.log("Connexion réussie. Affichage du contenu de l'application.");
       
-      // Afficher la première section du tableau de bord par défaut (upload-section)
-      const uploadSection = document.getElementById('upload-section');
-      if (uploadSection) {
-          uploadSection.classList.remove('hidden');
-          uploadSection.classList.add('fade-in'); // Appliquer l'animation de fondu
-          console.log("Section 'upload-section' affichée après connexion.");
-      } else {
-          console.warn("Section 'upload-section' introuvable.");
-      }
-
-      // Définir le premier élément de la barre latérale comme actif
-      const firstSidebarItem = document.querySelector('.sidebar-item[data-section="upload-section"]');
-      if (firstSidebarItem) {
-          firstSidebarItem.classList.add('active');
-      } else {
-          console.warn("L'élément de la barre latérale pour 'upload-section' n'a pas été trouvé.");
-      }
+      // Afficher la section "upload-section" par défaut après connexion
+      showSection('upload-section');
 
     } else {
       loginErrorMessage.textContent = 'Mot de passe incorrect. Veuillez réessayer.';
@@ -119,27 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- Gestion de la navigation entre sections ---
+  // --- Gestion de la navigation entre sections via la barre latérale ---
   sidebarItems.forEach(item => {
     item.addEventListener('click', function(event) {
       event.preventDefault();
       const targetSectionId = this.dataset.section;
-      console.log(`Clic sur l'élément de la barre latérale: ${targetSectionId}`);
-
-      mainSections.forEach(section => {
-        if (section.id === targetSectionId) {
-          section.classList.remove('hidden');
-          section.classList.add('fade-in'); // Appliquer l'animation de fondu
-          console.log(`Affichage de la section: ${section.id}`);
-        } else {
-          section.classList.remove('fade-in'); // S'assurer que le fondu disparaît avant de cacher
-          section.classList.add('hidden');
-          console.log(`Masquage de la section: ${section.id}`);
-        }
-      });
-
-      sidebarItems.forEach(sItem => sItem.classList.remove('active'));
-      this.classList.add('active');
+      showSection(targetSectionId); // Utilise la fonction centralisée
     });
   });
 
@@ -206,12 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Affichage des résultats dans les sections appropriées
       displayIaPerformanceMetrics(data.ia_performance_metrics);
       displayFileAnalysisMetrics(data.file_analysis_metrics, data.critères_non_pris_en_charge_a_ignorer || []);
-      displayRawPredictions(data.raw_predictions); // Afficher les prédictions brutes
+      displayRawPredictions(data.raw_predictions);
       
       // Initialisation de la pagination pour le tableau client
-      currentPage = 0; // Réinitialise la page à 0
-      ITEMS_PER_PAGE_GLOBAL = 10; // Réinitialise la pagination par défaut
-      displayClientScoringResults(data); // Affiche la première page ou tout
+      currentPage = 0;
+      ITEMS_PER_PAGE_GLOBAL = 10;
+      displayClientScoringResults(data);
       
       // Gérer les boutons de téléchargement
       currentReportPaths = data.report_paths || {};
@@ -508,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (showAllBtn) {
         // Condition pour afficher le bouton "Afficher tout" seulement si toutes les données ne sont pas déjà affichées
-        if (totalClients > ITEMS_PER_PAGE_GLOBAL || (ITEMS_PER_PAGE_GLOBAL === totalClients && totalClients > 10)) { // Si plus que le ITEMS_PER_PAGE par défaut ou si affichage tout est actif pour >10 éléments
+        if (totalClients > ITEMS_PER_PAGE_GLOBAL || (ITEMS_PER_PAGE_GLOBAL === totalClients && totalClients > 10)) {
             showAllBtn.classList.remove('hidden');
         } else {
             showAllBtn.classList.add('hidden');
@@ -516,17 +514,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showAllBtn.addEventListener('click', () => {
             console.log("Bouton 'Afficher tout' cliqué.");
-            currentPage = 0; // Revenir à la première "page" pour l'affichage de tout
-            ITEMS_PER_PAGE_GLOBAL = totalClients; // Ajuste la variable pour afficher tous les éléments
-            displayClientScoringResults(data); // Rappelle la fonction avec le nouveau réglage
-            // Après avoir affiché tout, masquez les boutons de pagination et le bouton "Afficher tout" lui-même
+            currentPage = 0;
+            ITEMS_PER_PAGE_GLOBAL = totalClients;
+            displayClientScoringResults(data);
             const prev = document.getElementById('prevPageBtn');
             const next = document.getElementById('nextPageBtn');
             const info = document.getElementById('page-info');
             if(prev) prev.classList.add('hidden');
             if(next) next.classList.add('hidden');
             if(info) info.classList.add('hidden');
-            showAllBtn.classList.add('hidden'); // Désactive ce bouton une fois cliqué
+            showAllBtn.classList.add('hidden');
         });
     }
 
@@ -574,10 +571,9 @@ document.addEventListener('DOMContentLoaded', () => {
       rawPredictionsContent.innerHTML = rawHtml;
   }
 
-  // --- Gestion des boutons de téléchargement des rapports ---\
+  // --- Gestion des boutons de téléchargement des rapports ---
   downloadReportBtn.addEventListener('click', () => {
     if (currentReportPaths.pdf) {
-      // Utilisation de window.location.origin pour construire l'URL complète
       window.open(`${window.location.origin}/download_report/${currentReportPaths.pdf}`, '_blank');
       console.log("Tentative de téléchargement du PDF:", `${window.location.origin}/download_report/${currentReportPaths.pdf}`);
     } else {
@@ -587,7 +583,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   downloadCsvBtn.addEventListener('click', () => {
     if (currentReportPaths.csv) {
-      // Utilisation de window.location.origin pour construire l'URL complète
       window.open(`${window.location.origin}/download_csv/${currentReportPaths.csv}`, '_blank');
       console.log("Tentative de téléchargement du CSV:", `${window.location.origin}/download_csv/${currentReportPaths.csv}`);
     } else {
@@ -597,7 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   downloadXlsxBtn.addEventListener('click', () => {
     if (currentReportPaths.xlsx) {
-      // Utilisation de window.location.origin pour construire l'URL complète
       window.open(`${window.location.origin}/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
       console.log("Tentative de téléchargement du XLSX:", `${window.location.origin}/download_xlsx/${currentReportPaths.xlsx}`);
     } else {
@@ -607,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialisation: Vérifier l'état initial du bouton d'analyse
   checkAnalysisButtonState();
-}); // Cette accolade et parenthèse finale ferment le document.addEventListener('DOMContentLoaded', ...)
+});
 
 // Un simple log pour confirmer que le script a été entièrement analysé et exécuté
 console.log("Le script app.js a été entièrement chargé et exécuté.");
