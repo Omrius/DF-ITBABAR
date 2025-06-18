@@ -8,7 +8,6 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-  <!-- Écran de connexion -->
   <div id="login-screen">
     <div class="login-card">
       <img src="https://placehold.co/80x80/2C3E50/FFFFFF?text=DF" alt="Datafindser Logo" class="login-logo">
@@ -22,7 +21,6 @@
     </div>
   </div>
 
-  <!-- Contenu principal de l'application (initiallement caché) -->
   <div id="app-content" class="hidden">
     <div id="sidebar">
       <div class="sidebar-header">
@@ -34,74 +32,54 @@
         <li><a href="#" class="sidebar-item" data-section="ia-performance-section"><i class="fas fa-robot"></i> Performance Moteur IA</a></li>
         <li><a href="#" class="sidebar-item" data-section="file-analysis-section"><i class="fas fa-file-alt"></i> Analyse Fichier Client</a></li>
         <li><a href="#" class="sidebar-item" data-section="client-scoring-results"><i class="fas fa-users"></i> Résultats Clients</a></li>
-        <li><a href="#" class="sidebar-item" data-section="raw-predictions-section"><i class="fas fa-code"></i> Prédictions Brutes</a></li>
-        <li><a href="#" class="sidebar-item"><i class="fas fa-user-circle"></i> Profil</a></li>
-        <li><a href="#" class="sidebar-item"><i class="fas fa-cogs"></i> Paramètres</a></li>
-        <li><a href="#" class="sidebar-item"><i class="fas fa-key"></i> API</a></li>
-        <li><a href="#" class="sidebar-item"><i class="fas fa-graduation-cap"></i> Entraînement Modèle</a></li>
+        <li><a href="#" class="sidebar-item" data-section="raw-predictions-section"><i class="fas fa-clipboard-list"></i> Résultats Bruts</a></li>
       </ul>
       <div class="sidebar-footer">
         <p>&copy; 2024 Datafindser</p>
       </div>
     </div>
 
-    <!-- Main Content -->
     <div id="main-content">
-      <header class="main-header">
-        <h1>Datafindser, la solution IA de scoring pour la banque par la banque</h1>
-        <div id="confirmation" class="message hidden"></div> <!-- Assurez-vous que cet élément est ici pour les messages -->
+      <header>
+        <h1>Tableau de Bord d'Analyse de Crédit</h1>
+        <div id="confirmation" class="message hidden"></div>
       </header>
 
-      <section id="upload-section" class="card main-section fade-in active-section">
-        <h2><i class="fas fa-upload icon-title"></i> Analyser un Fichier Client</h2>
-        <div class="input-group">
-          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="file-input" />
-          <label for="fileInput" class="file-label">
-            <i class="fas fa-file-upload"></i> Choisir un fichier
-          </label>
+      <!-- Section principale de Téléchargement et d'Analyse -->
+      <section id="upload-section" class="card main-section fade-in">
+        <h2><i class="fas fa-upload icon-title"></i> Télécharger et Analyser</h2>
+        <div class="upload-controls">
+          <div class="input-group">
+            <label for="fileInput" class="file-label">
+              <i class="fas fa-file-upload"></i> Choisir un fichier
+            </label>
+            <input type="file" id="fileInput" accept=".csv, .xlsx" class="hidden">
+          </div>
+          <div class="input-group">
+            <label for="creditType">Type de Crédit:</label>
+            <div class="select-wrapper">
+              <select id="creditType" required>
+                <option value="">Sélectionner le type de crédit</option>
+                <option value="conso">Crédit Conso</option>
+                <option value="immo">Crédit Immo</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="threshold-input">Seuil d'Appétence (0.01 - 0.99):</label>
+            <input type="number" id="threshold-input" min="0.01" max="0.99" step="0.01" value="0.5" required>
+          </div>
+          <button id="analyzeBtn" class="btn btn-primary" disabled>Analyser le Fichier</button>
         </div>
-        
-        <div class="select-group">
-          <label for="creditType">Type de crédit :</label>
-          <select id="creditType" class="select-field">
-            <option value="">Sélectionner un type</option>
-            <option value="conso">Consommation</option>
-            <option value="immo">Immobilier</option>
-            <option value="auto">Crédit Auto</option>
-          </select>
+        <div id="loadingIndicator" class="loading-indicator hidden">
+          <div class="spinner"></div>
+          <p>Analyse en cours...</p>
         </div>
-
-        <div class="input-group">
-          <label for="threshold-input">Seuil d'appétence (0.01 - 0.99):</label>
-          <input type="number" id="threshold-input" class="text-input" step="0.01" min="0.01" max="0.99" value="0.5" />
-        </div>
-
-        <div class="button-group">
-          <button id="analyzeBtn" class="btn btn-primary" disabled>
-            <i class="fas fa-chart-line"></i> Analyser le fichier
-          </button>
-          <div id="loadingIndicator" class="loading-spinner hidden"></div>
-        </div>
-        <div id="upload-status" class="message"></div>
-
-        <div class="download-buttons-group">
-          <button id="downloadReportBtn" class="btn btn-download" disabled>
-            <i class="fas fa-file-pdf"></i> Télécharger rapport PDF
-          </button>
-          <button id="downloadCsvBtn" class="btn btn-download" disabled>
-            <i class="fas fa-file-csv"></i> Télécharger résultats CSV
-          </button>
-          <button id="downloadXlsxBtn" class="btn btn-download" disabled>
-            <i class="fas fa-file-excel"></i> Télécharger résultats XLSX
-          </button>
-        </div>
-      </section>
-
-      <!-- Nouvelle section dédiée à l'Analyse du Fichier Client -->
-      <section id="file-analysis-section" class="card main-section hidden fade-in">
-        <h2><i class="fas fa-file-alt icon-title"></i> Analyse du Fichier Client</h2>
-        <div id="fileMetricsContent">
-            <!-- Contenu de l'analyse du fichier client sera inséré ici -->
+        <div class="download-reports-container">
+          <h3>Télécharger les Rapports:</h3>
+          <button id="downloadReportBtn" class="btn btn-download" disabled><i class="fas fa-file-pdf"></i> Rapport PDF</button>
+          <button id="downloadCsvBtn" class="btn btn-download" disabled><i class="fas fa-file-csv"></i> Données CSV</button>
+          <button id="downloadXlsxBtn" class="btn btn-download" disabled><i class="fas fa-file-excel"></i> Données XLSX</button>
         </div>
       </section>
 
@@ -113,10 +91,23 @@
         </div>
       </section>
 
+      <!-- Nouvelle section dédiée à l'Analyse du Fichier Client -->
+      <section id="file-analysis-section" class="card main-section hidden fade-in">
+        <h2><i class="fas fa-file-alt icon-title"></i> Analyse du Fichier Client</h2>
+        <div id="fileMetricsContent">
+          <!-- L'analyse du fichier sera insérée ici par JS -->
+          <div id="feature-importance-chart-container" class="chart-container hidden">
+            <h3>Importance des Caractéristiques</h3>
+            <canvas id="featureImportanceChart"></canvas>
+            <p id="feature-importance-chart-unavailable" class="message info hidden">Graphique d'importance des caractéristiques non disponible.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Section existante pour les résultats de scoring détaillés par client -->
       <section id="client-scoring-results" class="card main-section hidden fade-in">
         <h2><i class="fas fa-users icon-title"></i> Résultats de Scoring Détaillés par Client</h2>
-        <div id="clientScoringTableContainer">
+        <div id="client-scoring-table-container">
           <table id="predictions-table">
             <thead>
               <tr>
@@ -128,10 +119,8 @@
             </tbody>
           </table>
           <div class="pagination-controls">
-            <button id="prevPageBtn" class="btn-secondary hidden">Précédent</button>
-            <span id="page-info"></span>
-            <button id="nextPageBtn" class="btn-secondary hidden">Suivant</button>
-            <button id="showAllBtn" class="btn-secondary hidden">Afficher tout</button>
+            <button id="show-more-button" class="btn btn-primary hidden">Afficher plus de clients</button>
+            <p id="no-more-clients" class="message info hidden">Tous les clients ont été affichés.</p>
           </div>
         </div>
       </section>
@@ -139,9 +128,7 @@
       <!-- Section existante pour les résultats bruts de prédiction -->
       <section id="raw-predictions-section" class="card main-section hidden fade-in">
         <h2><i class="fas fa-clipboard-list icon-title"></i> Résultats Bruts de Prédiction</h2>
-        <div id="rawPredictionsContent">
-          <!-- Le contenu brut des prédictions sera inséré ici par JS -->
-        </div>
+        <pre id="rawPredictionsContent"></pre>
       </section>
     </div>
   </div>
