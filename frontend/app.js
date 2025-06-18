@@ -1,4 +1,53 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE ---
+  // Remplacez "votre_mot_de_passe_secret" par le mot de passe que vous souhaitez utiliser.
+  // ATTENTION: Ce mot de passe est visible dans le code source de la page (frontend).
+  // N'utilisez PAS cette méthode pour des informations sensibles ou une sécurité robuste.
+  const MOT_DE_PASSE_CORRECT = "votre_mot_de_passe_secret"; 
+
+  /**
+   * Demande un mot de passe à l'utilisateur et vérifie sa validité.
+   * Affiche le contenu de la page si le mot de passe est correct.
+   * Redemande ou refuse l'accès si incorrect/annulé.
+   * @returns {boolean} True si l'accès est autorisé, false sinon.
+   */
+  function demanderMotDePas(attemptCount = 0) {
+    if (attemptCount >= 3) { // Limite de 3 tentatives pour éviter une boucle infinie
+      alert("Trop de tentatives infructueuses. Accès refusé. Veuillez rafraîchir la page pour réessayer.");
+      document.body.style.display = 'none'; // Cache tout le contenu
+      return false;
+    }
+
+    let motDePasse = prompt("Veuillez entrer le mot de passe pour accéder au dashboard :");
+
+    if (motDePasse === null) { // L'utilisateur a cliqué sur "Annuler"
+      alert("Accès refusé. Veuillez rafraîchir la page pour réessayer.");
+      document.body.style.display = 'none'; // Cache tout le contenu
+      return false;
+    } else if (motDePasse === MOT_DE_PASSE_CORRECT) {
+      document.body.style.display = ''; // Affiche le contenu de la page
+      return true;
+    } else {
+      alert("Mot de passe incorrect. Veuillez réessayer.");
+      return demanderMotDePas(attemptCount + 1); // Rappelle la fonction pour un nouvel essai
+    }
+  }
+
+  // Cache le corps de la page dès le chargement, avant la vérification du mot de passe.
+  // Cela empêche le contenu de s'afficher momentanément avant la demande de mot de passe.
+  document.body.style.display = 'none';
+
+  // Lance le processus de demande de mot de passe.
+  // Si l'accès n'est pas autorisé (mot de passe incorrect après tentatives ou annulé),
+  // le reste du script ne s'exécutera pas.
+  const accesAutorise = demanderMotDePas();
+  if (!accesAutorise) {
+    return; // Arrête l'exécution du reste du code si l'accès n'est pas autorisé
+  }
+  // --- FIN DU CODE POUR LA PROTECTION PAR MOT DE PASSE ---
+
+
+  // --- DÉBUT DU CODE EXISTANT DE app.js ---
   const fileInput = document.getElementById('fileInput');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const confirmationDiv = document.getElementById('confirmation');
@@ -124,7 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoading(true);
 
     try {
-      const response = await fetch('https://df-itbabar.onrender.com/predict_aptitude', {
+      // Assurez-vous que l'URL pointe vers votre backend sur Render
+      // Remplacez 'https://df-itbabar-1.onrender.com' par 'https://df-itbabar.onrender.com'
+      const response = await fetch(`https://df-itbabar.onrender.com/predict_aptitude/?credit_type=${creditType}`, { // Utiliser creditTypeSelect.value ici
         method: 'POST',
         body: formData,
       });
@@ -346,7 +397,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Gestion du téléchargement des rapports ---
   downloadReportBtn.addEventListener('click', () => {
     if (currentReportPaths.pdf) {
-      window.open(`http://localhost:8000/download_report/${currentReportPaths.pdf}`, '_blank');
+      // Assurez-vous que l'URL pointe vers votre backend sur Render
+      // Remplacez 'http://localhost:8000' par 'https://df-itbabar.onrender.com'
+      window.open(`https://df-itbabar.onrender.com/download_report/${currentReportPaths.pdf}`, '_blank');
     } else {
       showMessage('Aucun rapport PDF disponible pour le téléchargement.', 'error');
     }
@@ -354,7 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   downloadCsvBtn.addEventListener('click', () => {
     if (currentReportPaths.csv) {
-      window.open(`http://localhost:8000/download_csv/${currentReportPaths.csv}`, '_blank');
+      // Assurez-vous que l'URL pointe vers votre backend sur Render
+      // Remplacez 'http://localhost:8000' par 'https://df-itbabar.onrender.com'
+      window.open(`https://df-itbabar.onrender.com/download_csv/${currentReportPaths.csv}`, '_blank');
     } else {
       showMessage('Aucun rapport CSV disponible pour le téléchargement.', 'error');
     }
@@ -362,7 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   downloadXlsxBtn.addEventListener('click', () => {
     if (currentReportPaths.xlsx) {
-      window.open(`http://localhost:8000/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
+      // Assurez-vous que l'URL pointe vers votre backend sur Render
+      // Remplacez 'http://localhost:8000' par 'https://df-itbabar.onrender.com'
+      window.open(`https://df-itbabar.onrender.com/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
     } else {
       showMessage('Aucun rapport XLSX disponible pour le téléchargement.', 'error');
     }
@@ -381,4 +438,5 @@ document.addEventListener('DOMContentLoaded', () => {
   String.prototype.capitalize = function() {
     return this.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
   };
+  // --- FIN DU CODE EXISTANT DE app.js ---
 });
