@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE ---
+  // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE (DÉSACTIVÉ POUR DÉPLOIEMENT RENDER) ---
+  /*
   const MOT_DE_PASSE_CORRECT = "votre_mot_de_passe_secret"; // Remplacez par votre mot de passe
 
   function demanderMotDePas(attemptCount = 0) {
@@ -33,10 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!accesAutorise) {
     return;
   }
+  */
   // --- FIN DU CODE POUR LA PROTECTION PAR MOT DE PASSE ---
 
 
   // --- DÉBUT DU CODE EXISTANT DE app.js ---
+  // Rendre le contenu principal visible par défaut puisque le prompt est désactivé
+  document.getElementById('login-section').classList.add('hidden');
+  document.getElementById('main-dashboard-content').classList.remove('hidden');
+
+
   const fileInput = document.getElementById('fileInput');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const confirmationDiv = document.getElementById('confirmation');
@@ -412,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tableHtml += '</tr>';
     });
-
+    
     tableHtml += '</tbody></table>';
     clientScoringTableContainer.innerHTML = tableHtml;
   }
