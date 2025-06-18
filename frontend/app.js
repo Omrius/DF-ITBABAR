@@ -50,6 +50,9 @@ let currentPredictionsData = [];
 let currentPage = 0;
 const ITEMS_PER_PAGE = 10; // Number of clients to display per "Show more" click
 
+// Store the full analysis data from the last successful prediction
+let lastAnalysisData = null;
+
 // --- Password configuration (CHANGE FOR PRODUCTION WITH A SECURE SYSTEM) ---
 const CORRECT_PASSWORD = "passwordfitbabar062525"; // Ensure this is the correct password
 
@@ -63,8 +66,7 @@ loginButton.addEventListener('click', () => {
         // Automatically show the upload section after login
         showSection('upload-section');
     } else {
-        loginErrorMessage.textContent = 'Mot de passe incorrect. Veuillez réessayer.';
-        loginErrorMessage.classList.remove('hidden'); // Show error message
+        showMessage('Mot de passe incorrect. Veuillez réessayer.', 'error', loginErrorMessage);
         passwordInput.value = ''; // Clear the input field
     }
 });
@@ -139,6 +141,19 @@ function showSection(sectionId) {
             item.classList.remove('active');
         }
     });
+
+    // Re-render specific content if data is available and section is being shown
+    if (lastAnalysisData) {
+        if (sectionId === 'ia-performance-section') {
+            updateIaMetrics(lastAnalysisData.model_metrics);
+        } else if (sectionId === 'file-analysis-section') {
+            updateFileAnalysis(lastAnalysisData.file_analysis);
+        } else if (sectionId === 'client-scoring-results') {
+            updateClientScoringTable(lastAnalysisData.predictions_with_details);
+        } else if (sectionId === 'raw-predictions-section') {
+            resultsContent.textContent = JSON.stringify(lastAnalysisData.predictions, null, 2);
+        }
+    }
 }
 
 
@@ -152,7 +167,7 @@ fileInput.addEventListener('change', () => {
     } else {
         predictButton.disabled = true;
         document.querySelector('.file-label').innerHTML = `<i class="fas fa-file-upload"></i> Choisir un fichier`;
-        showMessage('Aucun fichier sélectionné.', 'error');
+        // No error message here, just reset label
     }
 });
 
@@ -191,8 +206,8 @@ predictButton.addEventListener('click', async () => {
         }
 
         const data = await response.json();
-        // Store the last analysis data for displaying in other sections
-        lastAnalysisData = data; 
+        console.log("Données de réponse du backend:", data); // Log the full response for debugging
+        lastAnalysisData = data; // Store the data for displaying in other sections
 
         showMessage('Fichier analysé avec succès. Rapports générés.', 'success');
         
@@ -240,14 +255,115 @@ predictButton.addEventListener('click', async () => {
     }
 });
 
-showMoreButton.addEventListener('click', displayPredictions);
+showMoreButton.addEventListener('click', () => displayPredictions(
+    Array.from(document.querySelectorAll('#predictions-table thead th')).slice(0, -3).map(th => th.dataset.originalKey || th.textContent)
+)); // Pass current keys for table, excluding last 3 fixed headers
 
-function displayPredictions() {
+
+// Map common backend keys to more user-friendly French names for display
+const COLUMN_DISPLAY_NAMES = {
+    'client_identifier': 'Client',
+    'age': 'Âge',
+    'revenu': 'Revenu',
+    'nb_enfants': 'Nb Enfants',
+    'statut_pro': 'Statut Pro',
+    'anciennete_client_annees': 'Ancienneté Client (Années)',
+    'credit_existant_conso': 'Crédit Conso Existant',
+    'situation_familiale': 'Situation familiale',
+    'anciennete_emploi': 'Ancienneté Emploi',
+    'duree_credit': 'Durée Crédit',
+    'montant_credit': 'Montant Crédit',
+    'score_banque': 'Score Banque',
+    'historique_paiement': 'Historique Paiement',
+    // Ajoutez d'autres mappings ici si nécessaire
+};
+
+function updateClientScoringTable(predictionsWithDetails) {
+    currentPredictionsData = predictionsWithDetails;
+    currentPage = 0; // Reset pagination
+    predictionsTableBody.innerHTML = ''; // Clear existing table rows
+
+    const tableHeaderRow = document.querySelector('#predictions-table thead tr');
+    tableHeaderRow.innerHTML = ''; // Clear existing headers
+
+    if (!predictionsWithDetails || predictionsWithDetails.length === 0) {
+        tableHeaderRow.innerHTML = `<th>Client</th><th>Score d'Appétence</th><th>Forces</th><th>Faiblesses</th>`; // Default minimal headers
+        predictionsTableBody.innerHTML = '<tr><td colspan="4">Aucun résultat de scoring détaillé disponible.</td></tr>';
+        showMoreButton.classList.add('hidden');
+        noMoreClientsMessage.classList.remove('hidden');
+        return;
+    }
+
+    // Get all unique keys from original_data of ALL predictions for comprehensive headers
+    let allOriginalDataKeys = new Set();
+    predictionsWithDetails.forEach(client => {
+        if (client.original_data) {
+            Object.keys(client.original_data).forEach(key => allOriginalDataKeys.add(key));
+        }
+    });
+
+    // Convert Set to Array and sort for consistent order
+    let sortedKeys = Array.from(allOriginalDataKeys).sort();
+
+    // Prioritize certain columns to appear first, then others alphabetically
+    const prioritizedKeys = [
+        'client_identifier', 'age', 'revenu', 'nb_enfants', 'statut_pro',
+        'anciennete_client_annees', 'credit_existant_conso', 'situation_familiale',
+        'anciennete_emploi', 'duree_credit', 'montant_credit', 'score_banque', 'historique_paiement'
+    ];
+    
+    // Create a final ordered list of keys for the table header
+    let finalOrderedKeys = [];
+    prioritizedKeys.forEach(key => {
+        if (sortedKeys.includes(key)) {
+            finalOrderedKeys.push(key);
+            sortedKeys = sortedKeys.filter(k => k !== key); // Remove from sortedKeys to avoid duplication
+        }
+    });
+    finalOrderedKeys = finalOrderedKeys.concat(sortedKeys); // Add remaining keys alphabetically
+
+    // Add original data headers
+    finalOrderedKeys.forEach(key => {
+        const displayHeader = COLUMN_DISPLAY_NAMES[key] || key.replace(/_/g, ' ').capitalize();
+        const th = document.createElement('th');
+        th.textContent = displayHeader;
+        th.dataset.originalKey = key; // Store original key for dynamic lookup
+        tableHeaderRow.appendChild(th);
+    });
+
+    // Add prediction-specific headers (always at the end)
+    const fixedHeaders = ["Score d'Appétence", "Forces", "Faiblesses"];
+    fixedHeaders.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        tableHeaderRow.appendChild(th);
+    });
+
+    displayPredictions(finalOrderedKeys); // Pass the final ordered keys to displayPredictions
+}
+
+
+function displayPredictions(columnKeys) { // Receive the ordered list of column keys
     const startIndex = currentPage * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
+    let endIndex = startIndex + ITEMS_PER_PAGE;
+
+    if (endIndex > currentPredictionsData.length) {
+        endIndex = currentPredictionsData.length;
+    }
+
     const clientsToDisplay = currentPredictionsData.slice(startIndex, endIndex);
 
-    if (clientsToDisplay.length === 0) {
+    // Clear only if it's the first page
+    if (currentPage === 0) {
+        predictionsTableBody.innerHTML = '';
+    }
+
+    if (clientsToDisplay.length === 0 && currentPage === 0) {
+        predictionsTableBody.innerHTML = `<tr><td colspan="${columnKeys.length + 3}">Aucun résultat de scoring détaillé disponible.</td></tr>`;
+        showMoreButton.classList.add('hidden');
+        noMoreClientsMessage.classList.remove('hidden');
+        return;
+    } else if (clientsToDisplay.length === 0 && currentPage > 0) {
         showMoreButton.classList.add('hidden');
         noMoreClientsMessage.classList.remove('hidden');
         return;
@@ -255,30 +371,32 @@ function displayPredictions() {
 
     clientsToDisplay.forEach(client => {
         const row = predictionsTableBody.insertRow();
-        
-        // Ensure all expected columns are present, using 'N/A' for missing ones
         const originalData = client.original_data || {};
-        const clientIdentifier = originalData.client_identifier !== undefined && originalData.client_identifier !== null ? originalData.client_identifier : 'N/A';
-        const age = originalData.age !== undefined && originalData.age !== null ? originalData.age : 'N/A';
-        const revenu = originalData.revenu !== undefined && originalData.revenu !== null ? originalData.revenu : 'N/A';
-        const nbEnfants = originalData.nb_enfants !== undefined && originalData.nb_enfants !== null ? originalData.nb_enfants : 'N/A';
-        const statutPro = originalData.statut_pro !== undefined && originalData.statut_pro !== null ? originalData.statut_pro : 'N/A';
-        const ancienneteClientAnnees = originalData.anciennete_client_annees !== undefined && originalData.anciennete_client_annees !== null ? originalData.anciennete_client_annees : 'N/A';
-        const creditExistantConso = originalData.credit_existant_conso !== undefined && originalData.credit_existant_conso !== null ? (originalData.credit_existant_conso ? 'Oui' : 'Non') : 'N/A';
+
+        // Populate cells dynamically based on the ordered columnKeys
+        columnKeys.forEach(key => {
+            let value = originalData[key];
+            if (value === undefined || value === null) {
+                value = 'N/A';
+            } else if (typeof value === 'boolean') {
+                value = value ? 'Oui' : 'Non';
+            }
+            const cell = row.insertCell();
+            cell.textContent = value;
+            cell.setAttribute('data-label', COLUMN_DISPLAY_NAMES[key] || key.replace(/_/g, ' ').capitalize()); // For responsive table
+        });
         
-        row.insertCell().textContent = clientIdentifier;
-        row.insertCell().textContent = age;
-        row.insertCell().textContent = revenu;
-        row.insertCell().textContent = nbEnfants;
-        row.insertCell().textContent = statutPro;
-        row.insertCell().textContent = ancienneteClientAnnees;
-        row.insertCell().textContent = creditExistantConso;
-        row.insertCell().textContent = (client.score_appetence * 100).toFixed(2) + '%';
-        
-        // Check if observations_forces is an array before using .join()
-        row.insertCell().textContent = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
-        // Check if observations_faiblesses is an array before using .join()
-        row.insertCell().textContent = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
+        const scoreCell = row.insertCell();
+        scoreCell.textContent = client.score_appetence ? (client.score_appetence * 100).toFixed(2) + '%' : 'N/A';
+        scoreCell.setAttribute('data-label', "Score d'Appétence");
+
+        const forcesCell = row.insertCell();
+        forcesCell.textContent = Array.isArray(client.observations_forces) && client.observations_forces.length > 0 ? client.observations_forces.join(', ') : 'N/A';
+        forcesCell.setAttribute('data-label', "Forces");
+
+        const weaknessesCell = row.insertCell();
+        weaknessesCell.textContent = Array.isArray(client.observations_faiblesses) && client.observations_faiblesses.length > 0 ? client.observations_faiblesses.join(', ') : 'N/A';
+        weaknessesCell.setAttribute('data-label', "Faiblesses");
     });
 
     currentPage++;
@@ -392,13 +510,6 @@ function updateFileAnalysis(analysis) {
     summaryMissingFeatures.textContent = (analysis.critères_manquants_a_entrainer && analysis.critères_manquants_a_entrainer.join(', ')) || 'Aucun';
 }
 
-function updateClientScoringTable(predictionsWithDetails) {
-    currentPredictionsData = predictionsWithDetails;
-    currentPage = 0; // Reset pagination
-    predictionsTableBody.innerHTML = ''; // Clear existing table rows
-    displayPredictions(); // Populate the table with the first page of data
-}
-
 
 // --- Sidebar navigation logic ---
 sidebarItems.forEach(item => {
@@ -412,11 +523,11 @@ sidebarItems.forEach(item => {
 });
 
 // --- Download report functions ---
-downloadPdfButton.addEventListener('click', () => downloadReport('pdf'));
-downloadCsvButton.addEventListener('click', () => downloadReport('csv'));
-downloadXlsxButton.addEventListener('click', () => downloadReport('xlsx'));
+downloadPdfButton.addEventListener('click', (event) => downloadReport('pdf', event));
+downloadCsvButton.addEventListener('click', (event) => downloadReport('csv', event));
+downloadXlsxButton.addEventListener('click', (event) => downloadReport('xlsx', event));
 
-async function downloadReport(type) {
+async function downloadReport(type, event) {
     const filename = event.target.dataset.filename;
     if (!filename) {
         showMessage('Nom de fichier non défini pour le téléchargement.', 'error');
@@ -440,7 +551,7 @@ async function downloadReport(type) {
         window.URL.revokeObjectURL(url);
     } catch (error) {
         console.error(`Error downloading ${type} report:`, error);
-        showMessage(`Failed to download ${type} report. Please try again. Detail: ${error.message}`, 'error');
+        showMessage(`Échec du téléchargement du rapport ${type}. Veuillez réessayer. Détail : ${error.message}`, 'error');
     }
 }
 
