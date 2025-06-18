@@ -5,6 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import json
+import numpy as np # Assurez-vous que numpy est importé
 
 print("DEBUG: Démarrage du script train_model.py") # DEBUG PRINT
 
@@ -20,67 +21,121 @@ METRICS_PATH = os.path.join(BASE_DIR, "models", "metrics.json")
 os.makedirs(os.path.join(BASE_DIR, "models"), exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
 
+# Définir explicitement toutes les catégories possibles pour les colonnes catégorielles
+# Ceci doit être IDENTIQUE à CATEGORICAL_FEATURES_WITH_VALUES dans observation_generator.py
+CATEGORICAL_FEATURES_WITH_VALUES = {
+    'situation_familiale': ['1', '2', '3'], # 1 = marié, 2 = célibataire, 3 = divorcé (converties en string)
+    'credit_simt': ['0', '1'],             # 0 = non, 1 = oui (converties en string)
+    'type_contrat': ['CDI', 'CDD', 'etudiant', 'sans'],
+}
+
+
 # Création d'un dataset factice si le fichier n'existe pas (pour les tests)
 if not os.path.exists(DATA_PATH):
     print(f"ATTENTION: Le fichier de données d'entraînement '{DATA_PATH}' est introuvable.")
-    print("Création d'un dataset factice pour permettre l'exécution du script.")
+    print("Génération d'un jeu de données factice pour l'entraînement.")
+    # Générer le dataset factice ici (votre code original de generate_train_data.py)
+    n = 5000
     data = {
-        'age': [25, 30, 35, 40, 45, 50, 28, 33, 38, 42, 55, 60],
-        'revenu': [30000, 45000, 60000, 75000, 90000, 100000, 35000, 50000, 65000, 80000, 120000, 40000],
-        'nb_enfants': [0, 2, 1, 3, 0, 1, 0, 2, 1, 0, 2, 1],
-        'statut_pro': ['CDI', 'CDD', 'CDI', 'Auto-entrepreneur', 'CDI', 'CDI', 'CDD', 'CDI', 'Auto-entrepreneur', 'CDI', 'Retraite', 'CDI'],
-        'anciennete_client_annees': [1, 5, 2, 8, 3, 10, 2, 6, 4, 9, 15, 3],
-        'credit_existant_conso': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        'appetence_conso': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-        'appetence_immo': [0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0]
+        "age": np.random.randint(18, 70, size=n),
+        "revenus": np.random.randint(1000, 10000, size=n),
+        "credit_conso": np.random.randint(0, 2, size=n),  # 0 = pas de crédit, 1 = crédit conso
+        "credit_immo": np.random.randint(0, 2, size=n),  # 0 = pas de crédit, 1 = crédit immo
+        "historique": np.random.choice(["A", "I"], size=n, p=[0.85, 0.15]),  # A = bon client, I = incident
+        "duree_anciennete": np.random.randint(0, 30, size=n),
+        "nb_credits": np.random.randint(0, 10, size=n),
+        "montant_credits": np.random.randint(0, 200000, size=n),
+        "taux_endettement": np.random.uniform(0, 1, size=n),
+        "appetence_conso": np.random.randint(0, 2, size=n),
+        "appetence_immo": np.random.randint(0, 2, size=n),
+        # Ajout des nouvelles colonnes pour le test
+        "nom_prenom": [f"Client_{i}" for i in range(n)],
+        "situation_familiale": np.random.choice([1, 2, 3], size=n), # 1: Marié, 2: Célib, 3: Divorcé
+        "anciennete_emploi": np.random.randint(0, 20, size=n),
+        "type_contrat": np.random.choice(["CDI", "CDD", "etudiant", "sans"], size=n, p=[0.7, 0.15, 0.1, 0.05]),
+        "anciente_compte": np.random.randint(1, 25, size=n),
+        "solde_moy": np.random.randint(500, 15000, size=n),
+        "mvt_crediteur": np.random.randint(100, 5000, size=n),
+        "mvt_debiteur": np.random.randint(50, 3000, size=n),
+        "credit_simt": np.random.choice([0, 1], size=n, p=[0.9, 0.1]),
+        "mt_plv_simt": np.random.randint(0, 50000, size=n)
     }
-    df = pd.DataFrame(data)
-    df.to_excel(DATA_PATH, index=False)
-    print(f"Dataset factice créé à {DATA_PATH}")
+    df_train = pd.DataFrame(data)
+    df_train.to_excel(DATA_PATH, index=False)
+    print(f"Jeu de données factice créé et sauvegardé à {DATA_PATH}")
 else:
-    print(f"DEBUG: Chargement du dataset depuis {DATA_PATH}") # DEBUG PRINT
-    df = pd.read_excel(DATA_PATH)
+    print(f"DEBUG: Chargement du jeu de données d'entraînement depuis {DATA_PATH}")
+    df_train = pd.read_excel(DATA_PATH)
+    print(f"DEBUG: Jeu de données d'entraînement chargé. Forme : {df_train.shape}")
 
-if 'appetence_conso' not in df.columns:
-    df['appetence_conso'] = 0
-if 'appetence_immo' not in df.columns:
-    df['appetence_immo'] = 0
+# Vérification des colonnes et types de données avant le traitement
+print("DEBUG: Colonnes du DataFrame d'entraînement avant prétraitement:")
+print(df_train.info())
 
-target_columns = ['appetence_conso', 'appetence_immo']
-# Stocker les noms des colonnes d'origine avant le one-hot encoding
-original_feature_names = df.drop(columns=target_columns, errors='ignore').columns.tolist()
+# Définir les colonnes cibles
+TARGET_CONSO = 'credit_conso' 
+TARGET_IMMO = 'credit_imo'
 
-X = pd.get_dummies(df.drop(columns=target_columns, errors='ignore'))
-y_conso = df['appetence_conso']
-y_immo = df['appetence_immo']
+# Colonnes à ignorer pour l'entraînement (par exemple, identifiants ou colonnes non-features)
+COLS_TO_IGNORE_TRAINING = ['nom_prenom'] 
 
-# Stocker les noms des colonnes après le one-hot encoding (ces noms sont utilisés par le modèle)
-feature_names_after_dummies = X.columns.tolist()
+# Enregistrer les noms des features originales avant tout traitement pour les métriques
+original_feature_names = [
+    col for col in df_train.columns 
+    if col not in [TARGET_CONSO, TARGET_IMMO] and col not in COLS_TO_IGNORE_TRAINING
+]
 
-if len(X) > 1 and len(y_conso.unique()) > 1:
-    X_train_conso, X_test_conso, y_train_conso, y_test_conso = train_test_split(X, y_conso, test_size=max(0.2, 1/len(X)), random_state=42, stratify=y_conso)
-else:
-    print("DEBUG: Pas assez de données pour stratifier, utilisation du même dataset pour train/test conso.") # DEBUG PRINT
-    X_train_conso, X_test_conso, y_train_conso, y_test_conso = X, X, y_conso, y_conso
+# Préparer les données pour l'entraînement
+# Sélectionner toutes les colonnes sauf les cibles et celles à ignorer
+feature_cols = [col for col in df_train.columns if col not in [TARGET_CONSO, TARGET_IMMO] + COLS_TO_IGNORE_TRAINING]
+X = df_train[feature_cols].copy()
 
-if len(X) > 1 and len(y_immo.unique()) > 1:
-    X_train_immo, X_test_immo, y_train_immo, y_test_immo = train_test_split(X, y_immo, test_size=max(0.2, 1/len(X)), random_state=42, stratify=y_immo)
-else:
-    print("DEBUG: Pas assez de données pour stratifier, utilisation du même dataset pour train/test immo.") # DEBUG PRINT
-    X_train_immo, X_test_immo, y_train_immo, y_test_immo = X, X, y_immo, y_immo
+# Appliquer le CategoricalDtype avec les catégories complètes avant get_dummies
+# Ceci est la partie CRUCIALE pour la cohérence
+for col, categories in CATEGORICAL_FEATURES_WITH_VALUES.items():
+    if col in X.columns:
+        X[col] = X[col].astype(str) # Assurez-vous que la colonne est de type string
+        X[col] = pd.Categorical(X[col], categories=categories)
+        print(f"DEBUG: Colonne '{col}' convertie en type catégoriel avec catégories définies.")
 
 
-model_conso = RandomForestClassifier(n_estimators=100, random_state=42)
-model_immo = RandomForestClassifier(n_estimators=100, random_state=42)
+# Appliquer l'encodage One-Hot
+# drop_first=True est important pour éviter la multicolinéarité et doit être cohérent
+X = pd.get_dummies(X, drop_first=True)
+print(f"DEBUG: Forme de X après one-hot encoding : {X.shape}")
 
-print("Entraînement des modèles...")
+# Assurez-vous que l'ordre des colonnes est trié alphabétiquement pour une cohérence maximale
+feature_names_after_dummies = sorted(X.columns.tolist())
+X = X[feature_names_after_dummies] # Réindexer X avec l'ordre trié
+print(f"DEBUG: Colonnes de X après tri alphabétique (premières 5) : {X.columns.tolist()[:5]}...")
+
+
+# Diviser les données en ensembles d'entraînement et de test
+# Pour le modèle de consommation
+y_conso = df_train[TARGET_CONSO]
+X_train_conso, X_test_conso, y_train_conso, y_test_conso = train_test_split(
+    X, y_conso, test_size=0.2, random_state=42, stratify=y_conso
+)
+
+# Pour le modèle immobilier (si différent, sinon peut réutiliser X et X_train/test)
+y_immo = df_train[TARGET_IMMO]
+X_train_immo, X_test_immo, y_train_immo, y_test_immo = train_test_split(
+    X, y_immo, test_size=0.2, random_state=42, stratify=y_immo
+)
+
+# Entraîner les modèles
+print("DEBUG: Entraînement du modèle de consommation...")
+model_conso = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
 model_conso.fit(X_train_conso, y_train_conso)
+print("DEBUG: Modèle de consommation entraîné.")
+
+print("DEBUG: Entraînement du modèle immobilier...")
+model_immo = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
 model_immo.fit(X_train_immo, y_train_immo)
+print("DEBUG: Modèle immobilier entraîné.")
 
-print("Évaluation des performances des modèles...")
-y_pred_conso = model_conso.predict(X_test_conso)
-y_pred_immo = model_immo.predict(X_test_immo)
 
+# Calculer les métriques de performance
 def calculate_model_performance(model, X_test, y_test, feature_names):
     y_pred = model.predict(X_test)
     metrics = {
@@ -93,8 +148,9 @@ def calculate_model_performance(model, X_test, y_test, feature_names):
     feature_importances = {}
     if hasattr(model, 'feature_importances_'):
         importances = model.feature_importances_
+        # Assurez-vous que les noms de features correspondent aux importances
         for i, importance in enumerate(importances):
-            if i < len(feature_names):
+            if i < len(feature_names): # Vérification de borne
                 feature_importances[feature_names[i]] = importance
         
         sorted_features = sorted(feature_importances.items(), key=lambda item: item[1], reverse=True)
@@ -103,23 +159,26 @@ def calculate_model_performance(model, X_test, y_test, feature_names):
     return metrics
 
 all_metrics = {}
+# Utiliser feature_names_after_dummies qui est trié et complet
 all_metrics["conso"] = calculate_model_performance(model_conso, X_test_conso, y_test_conso, feature_names_after_dummies)
 all_metrics["immo"] = calculate_model_performance(model_immo, X_test_immo, y_test_immo, feature_names_after_dummies)
 
 # Ajouter les noms des features originales et des features après dummy au JSON des métriques
 all_metrics["original_trained_features"] = original_feature_names
-all_metrics["full_trained_dummy_features"] = feature_names_after_dummies
-
+all_metrics["full_trained_dummy_features"] = feature_names_after_dummies # Cette liste est CRUCIALE pour la cohérence
 
 print(f"Accuracy crédit conso : {all_metrics['conso']['accuracy']:.2f}")
 print(f"Accuracy crédit immo : {all_metrics['immo']['accuracy']:.2f}")
 
+# Sauvegarder les modèles
 joblib.dump(model_conso, MODEL_CONSO_PATH)
+print(f"Modèle consommation sauvegardé à {MODEL_CONSO_PATH}")
 joblib.dump(model_immo, MODEL_IMMO_PATH)
-print("Modèles sauvegardés.")
+print(f"Modèle immobilier sauvegardé à {MODEL_IMMO_PATH}")
 
+# Sauvegarder les métriques dans un fichier JSON
 with open(METRICS_PATH, 'w') as f:
     json.dump(all_metrics, f, indent=4)
-print(f"Métriques de performance sauvegardées à {METRICS_PATH}")
+print(f"Métriques sauvegardées à {METRICS_PATH}")
 
-print("DEBUG: Fin du script train_model.py") # DEBUG PRINT
+print("DEBUG: Script train_model.py terminé.")

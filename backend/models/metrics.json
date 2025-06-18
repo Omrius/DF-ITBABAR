@@ -1,121 +1,159 @@
 {
     "conso": {
-        "accuracy": 0.469,
-        "precision": 0.4821092278719397,
-        "recall": 0.5,
-        "f1_score": 0.49089165867689355,
+        "accuracy": 0.9935,
+        "precision": 0.9884726224783862,
+        "recall": 0.9927641099855282,
+        "f1_score": 0.9906137184115523,
         "feature_importances": [
             [
-                "taux_endettement",
-                0.19031982273958928
+                "type_contrat_CDD",
+                0.28975783090798235
             ],
             [
-                "revenus",
-                0.19002290510114347
+                "mvt_debiteur",
+                0.14116663346734132
             ],
             [
-                "montant_credits",
-                0.18822513871428923
+                "type_contrat_sans",
+                0.13900205120823172
+            ],
+            [
+                "mvt_crediteur",
+                0.09750103841853872
+            ],
+            [
+                "mt_plv_simt",
+                0.08323339782153079
+            ],
+            [
+                "type_contrat_etudiant",
+                0.07496963403455761
+            ],
+            [
+                "anciennete_emploi",
+                0.05687231849481052
             ],
             [
                 "age",
-                0.14464220458262217
+                0.04283980009043808
             ],
             [
-                "duree_anciennete",
-                0.13070654009044796
+                "anciente_compte",
+                0.03472488596088618
             ],
             [
-                "nb_credits",
-                0.0891525280659618
+                "solde_moy",
+                0.023927684621914545
             ],
             [
-                "credit_immo",
-                0.023697019707134986
+                "nbre_enfants",
+                0.009318631644974242
             ],
             [
-                "credit_conso",
-                0.022100779577844926
+                "situation_familiale_2",
+                0.004575862737424184
             ],
             [
-                "historique_I",
-                0.010717787548295317
+                "situation_familiale_3",
+                0.0021102305913698414
             ],
             [
-                "historique_A",
-                0.010415273872670917
+                "credit_simt_1",
+                0.0
             ]
         ]
     },
     "immo": {
-        "accuracy": 0.521,
-        "precision": 0.5244618395303327,
-        "recall": 0.5317460317460317,
-        "f1_score": 0.5280788177339901,
+        "accuracy": 0.999,
+        "precision": 1.0,
+        "recall": 0.9957356076759062,
+        "f1_score": 0.9978632478632479,
         "feature_importances": [
             [
-                "revenus",
-                0.19116707423656212
+                "type_contrat_CDD",
+                0.22137227531019169
             ],
             [
-                "montant_credits",
-                0.1876521642843877
+                "mt_plv_simt",
+                0.2057107137326932
             ],
             [
-                "taux_endettement",
-                0.18722576124704457
+                "nbre_enfants",
+                0.15509092043176434
+            ],
+            [
+                "type_contrat_sans",
+                0.10493255123780876
             ],
             [
                 "age",
-                0.1476557127450149
+                0.08925248580545252
             ],
             [
-                "duree_anciennete",
-                0.13228048144798993
+                "solde_moy",
+                0.046087315551868464
             ],
             [
-                "nb_credits",
-                0.08691969316037852
+                "type_contrat_etudiant",
+                0.04426013511799826
             ],
             [
-                "credit_conso",
-                0.023877635458779273
+                "situation_familiale_3",
+                0.03586213469204855
             ],
             [
-                "credit_immo",
-                0.0203456345870043
+                "situation_familiale_2",
+                0.029962912914064194
             ],
             [
-                "historique_I",
-                0.011485004765787475
+                "anciennete_emploi",
+                0.02545665749832897
             ],
             [
-                "historique_A",
-                0.011390838067051238
+                "anciente_compte",
+                0.016680687730934063
+            ],
+            [
+                "mvt_debiteur",
+                0.012883953145305794
+            ],
+            [
+                "mvt_crediteur",
+                0.012447256831540987
+            ],
+            [
+                "credit_simt_1",
+                0.0
             ]
         ]
     },
     "original_trained_features": [
         "age",
-        "revenus",
-        "credit_conso",
-        "credit_immo",
-        "historique",
-        "duree_anciennete",
-        "nb_credits",
-        "montant_credits",
-        "taux_endettement"
+        "situation_familiale",
+        "nbre_enfants",
+        "anciennete_emploi",
+        "type_contrat",
+        "anciente_compte",
+        "solde_moy",
+        "mvt_crediteur",
+        "mvt_debiteur",
+        "credit_simt",
+        "mt_plv_simt"
     ],
     "full_trained_dummy_features": [
         "age",
-        "revenus",
-        "credit_conso",
-        "credit_immo",
-        "duree_anciennete",
-        "nb_credits",
-        "montant_credits",
-        "taux_endettement",
-        "historique_A",
-        "historique_I"
+        "anciennete_emploi",
+        "anciente_compte",
+        "credit_simt_1",
+        "mt_plv_simt",
+        "mvt_crediteur",
+        "mvt_debiteur",
+        "nbre_enfants",
+        "situation_familiale_2",
+        "situation_familiale_3",
+        "solde_moy",
+        "type_contrat_CDD",
+        "type_contrat_etudiant",
+        "type_contrat_sans"
     ]
 }

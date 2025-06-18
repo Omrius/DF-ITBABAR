@@ -1,7 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 import pandas as pd
 import joblib
 import os
@@ -9,24 +10,20 @@ from io import BytesIO, StringIO
 import logging
 import json
 import numpy as np
-import tempfile
-import asyncio
-from starlette.background import BackgroundTask # Import nécessaire pour BackgroundTask
-
+from typing import Dict, Any
+from starlette.background import BackgroundTask 
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importation des utilitaires avec chemins ABSOLUS par rapport au Root Directory de Render ('backend/')
-# Correct: Python va chercher 'utils' directement dans le chemin de l'application.
-import utils.observation_generator as observation_generator
-from utils.observation_generator import get_original_feature_name, add_client_insights_to_df 
-from utils.report_generator import generate_pdf_report
+# Importation des utilitaires
+import backend.utils.observation_generator as observation_generator
+from backend.utils.report_generator import generate_pdf_report 
 
 
 app = FastAPI()
 
-# Middleware CORS
+# Middleware CORS pour permettre les requêtes depuis le frontend
 logging.info("DEBUG: Application du CORSMiddleware...")
 app.add_middleware(
     CORSMiddleware,
@@ -38,26 +35,31 @@ app.add_middleware(
 logging.info("DEBUG: CORSMiddleware appliqué.")
 
 
-# Construire les chemins absolus pour les modèles et métriques (locaux dans le conteneur)
-# Render définit '/opt/render/project/src/' comme la racine de votre dépôt.
-# Si votre Root Directory sur Render est 'backend/', alors les chemins sont relatifs à 'backend/'.
-# Les fichiers sont donc dans 'models/' et 'data/' par rapport à 'backend/'
+# Construire les chemins absolus pour les modèles et métriques
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
+
 MODEL_CONSO_PATH = os.path.join(BASE_DIR, "models", "model_conso.pkl")
 MODEL_IMMO_PATH = os.path.join(BASE_DIR, "models", "model_immo.pkl")
 METRICS_PATH = os.path.join(BASE_DIR, "models", "metrics.json")
 
 
 # Dictionnaire pour stocker les modèles chargés et les métriques
-models = {}
-model_performance_metrics = {}
+models: Dict[str, Any] = {}
+model_performance_metrics: Dict[str, Any] = {}
+# Nouvelle variable pour stocker les colonnes attendues globalement dans l'application
+app_expected_columns_after_dummies: list = []
+app_original_trained_features: list = []
+
+
+# Dictionnaire pour stocker temporairement les chemins des rapports générés.
+temp_reports_storage: Dict[str, str] = {}
+
 
 @app.on_event("startup")
 async def load_resources():
-    """Charge les modèles de scoring et les métriques au démarrage de l'application depuis les fichiers locaux."""
+    """Charge les modèles de scoring et les métriques au démarrage de l'application."""
     logging.info("DEBUG: Exécution de l'événement de démarrage (startup event).")
-    
-    global model_performance_metrics
+    global app_expected_columns_after_dummies, app_original_trained_features, model_performance_metrics
 
     # Chargement des modèles
     try:
@@ -66,7 +68,7 @@ async def load_resources():
         logging.info("Modèle consommation chargé avec succès.")
     except FileNotFoundError:
         logging.error(f"Erreur : Le fichier du modèle consommation est introuvable à {MODEL_CONSO_PATH}")
-        raise HTTPException(status_code=500, detail=f"Modèle consommation introuvable : {MODEL_CONSO_PATH}. Assurez-vous qu'il est inclus dans l'image Docker.")
+        raise HTTPException(status_code=500, detail=f"Modèle consommation introuvable : {MODEL_CONSO_PATH}. Exécutez train_model.py.")
     except Exception as e:
         logging.error(f"Erreur lors du chargement du modèle consommation : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur de chargement du modèle consommation : {e}")
@@ -77,17 +79,17 @@ async def load_resources():
         logging.info("Modèle immobilier chargé avec succès.")
     except FileNotFoundError:
         logging.error(f"Erreur : Le fichier du modèle immobilier est introuvable à {MODEL_IMMO_PATH}")
-        raise HTTPException(status_code=500, detail=f"Modèle immobilier introuvable : {MODEL_IMMO_PATH}. Assurez-vous qu'il est inclus dans l'image Docker.")
+        raise HTTPException(status_code=500, detail=f"Modèle immobilier introuvable : {MODEL_IMMO_PATH}. Exécutez train_model.py.")
     except Exception as e:
         logging.error(f"Erreur lors du chargement du modèle immobilier : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur de chargement du modèle immobilier : {e}")
 
-    # Chargement des métriques (incluant les feature importances)
+    # Chargement des métriques (incluant maintenant les feature importances)
     try:
         logging.info(f"Chargement des métriques depuis : {METRICS_PATH}")
         with open(METRICS_PATH, 'r') as f:
             model_performance_metrics = json.load(f)
-        logging.info("Métriques loaded successfully.")
+        logging.info("Métriques chargées avec succès.")
     except FileNotFoundError:
         logging.warning(f"Avertissement : Le fichier de métriques est introuvable à {METRICS_PATH}. Les métriques ne seront pas affichées.")
         model_performance_metrics = {}
@@ -98,10 +100,12 @@ async def load_resources():
         logging.error(f"Erreur lors du chargement des métriques : {e}")
         model_performance_metrics = {}
 
-    # Initialisation de observation_generator pour charger les colonnes attendues (depuis local)
+    # IMPORTANT : Assurez-vous que les colonnes attendues sont chargées au démarrage
+    # Elles sont maintenant chargées une seule fois et stockées dans des variables de l'application
     try:
-        logging.info("DEBUG: Chargement des colonnes attendues via observation_generator._load_expected_columns()...")
-        observation_generator._load_expected_columns()
+        logging.info("DEBUG: Chargement des colonnes attendues via observation_generator._load_expected_columns_and_original_features_for_startup()...")
+        # Correction de l'appel de fonction ici
+        app_expected_columns_after_dummies, app_original_trained_features = observation_generator._load_expected_columns_and_original_features_for_startup()
         logging.info("DEBUG: Colonnes attendues chargées avec succès.")
     except Exception as e:
         logging.error(f"Erreur critique lors du pré-chargement des colonnes attendues : {e}")
@@ -114,28 +118,70 @@ async def read_root():
     logging.info("DEBUG: Requête reçue sur l'endpoint /")
     return {"message": "Bienvenue sur l'API Datafindser ! Le backend fonctionne."}
 
+def clean_nans_infs_recursive(obj):
+    """
+    Nettoie les valeurs NaN et Inf des objets Python (dictionnaires, listes, scalaires)
+    en les convertissant en None pour la compatibilité JSON.
+    Convertit également les types NumPy en types Python natifs.
+    """
+    if isinstance(obj, dict):
+        return {k: clean_nans_infs_recursive(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nans_infs_recursive(elem) for elem in obj]
+    elif isinstance(obj, (np.floating, np.integer, np.bool_)):
+        if pd.isna(obj) or np.isinf(obj):
+            return None
+        return obj.item() # Convertit les types NumPy en types Python natifs
+    elif pd.isna(obj) or (isinstance(obj, float) and np.isinf(obj)):
+        return None
+    return obj
 
-temp_reports_storage = {}
+# Modèle Pydantic pour la requête de connexion
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+@app.post("/login")
+async def login(user: UserLogin):
+    """
+    Endpoint pour la connexion des utilisateurs.
+    Pour une démo, les identifiants sont codés en dur.
+    """
+    # Pour une application réelle, vous vérifieriez ces identifiants contre une base de données.
+    if user.username == "user" and user.password == "password123":
+        return {"message": "Connexion réussie!"}
+    raise HTTPException(status_code=401, detail="Nom d'utilisateur ou mot de passe incorrect.")
+
 
 @app.post("/predict_aptitude/")
 async def predict_aptitude(
     file: UploadFile = File(...),
-    credit_type: str = "conso",
+    credit_type: str = "conso", # 'conso' ou 'immo' (type primaire pour l'affichage/insights)
     appetence_threshold: float = 0.5
 ):
     """
     Endpoint pour prédire l'appétence au crédit d'un client à partir d'un fichier Excel ou CSV.
+    Calcule les scores pour les prêts à la consommation et immobiliers.
     Génère également une analyse du fichier et des rapports PDF, CSV, XLSX.
-    Les rapports sont sauvegardés temporairement et accessibles via des liens de téléchargement immédiats.
+
+    Args:
+        file (UploadFile): Le fichier Excel ou CSV contenant les données du client.
+        credit_type (str): Le type de crédit primaire pour lequel la prédiction est demandée ('conso' ou 'immo').
+                           Ce paramètre influence les métriques et les insights affichés.
+        appetence_threshold (float): Seuil de probabilité au-delà duquel un client est considéré comme appétent.
+
+    Returns:
+        dict: Un dictionnaire contenant le message de succès, les prédictions,
+              les métriques du modèle, l'analyse du fichier et les chemins des rapports.
     """
-    logging.info(f"Requête reçue sur /predict_aptitude/ pour type de crédit: {credit_type}")
+    logging.info(f"Requête reçue sur /predict_aptitude/ pour type de crédit primaire: {credit_type}")
 
     if credit_type not in models:
-        logging.error(f"Type de crédit '{credit_type}' non supporté. Types supportés : {list(models.keys())}")
-        raise HTTPException(status_code=400, detail=f"Type de crédit non valide. Choisissez 'conso' ou 'immo'.")
+        logging.error(f"Type de crédit primaire '{credit_type}' non supporté. Types supportés : {list(models.keys())}")
+        raise HTTPException(status_code=400, detail=f"Type de crédit primaire non valide. Choisissez 'conso' ou 'immo'.")
 
     file_extension = os.path.splitext(file.filename)[1].lower()
-    df_original = None
+    df_original = None 
     try:
         contents = await file.read()
         if file_extension in ('.xlsx', '.xls'):
@@ -151,6 +197,12 @@ async def predict_aptitude(
         logging.error(f"Erreur lors de la lecture du fichier '{file.filename}' : {e}")
         raise HTTPException(status_code=400, detail=f"Erreur lors de la lecture du fichier : {e}")
 
+    # Ajouter une colonne 'client_identifier' si elle n'existe pas, basée sur l'index
+    if 'client_identifier' not in df_original.columns:
+        df_original['client_identifier'] = df_original.index + 1
+        logging.info("Ajout d'une colonne 'client_identifier' basée sur l'index pour la cohérence.")
+
+    # Initialiser l'analyse du fichier client
     file_analysis = {}
     if df_original is not None:
         file_analysis['nom_fichier'] = file.filename
@@ -159,127 +211,192 @@ async def predict_aptitude(
         file_analysis['nombre_colonnes'] = len(df_original.columns)
         file_analysis['colonnes'] = df_original.columns.tolist()
         file_analysis['types_donnees'] = {col: str(df_original[col].dtype) for col in df_original.columns}
+        # Convertir les NaN des valeurs manquantes en 0 pour la sérialisation JSON
         file_analysis['valeurs_manquantes'] = {k: v if pd.notna(v) else 0 for k, v in df_original.isnull().sum().to_dict().items()}
-        file_analysis['resume_statistique'] = df_original.describe(include='all').replace([np.inf, -np.inf, np.nan], None).to_dict()
+        # Remplacer inf/-inf/NaN par None pour la sérialisation JSON
+        temp_describe = df_original.describe(include='all')
+        file_analysis['resume_statistique'] = clean_nans_infs_recursive(temp_describe.to_dict())
 
 
     try:
-        df_processed, used_client_cols, ignored_client_cols, missing_trained_cols = observation_generator.generate_observations(df_original.copy())
-        logging.info(f"Données traitées pour la prédiction. Forme : {df_processed.shape}")
+        # Prétraitement du DataFrame original pour la prédiction
+        # On passe explicitement les colonnes attendues et originales
+        df_processed_for_prediction, used_client_cols, ignored_client_cols, missing_trained_cols = \
+            observation_generator.generate_observations(
+                df_original.copy(),
+                app_expected_columns_after_dummies, # Pass the stored values
+                app_original_trained_features       # Pass the stored values
+            )
+        logging.info(f"Données prétraitées pour la prédiction. Forme : {df_processed_for_prediction.shape}")
         
-        file_analysis['critères_pris_en_charge'] = [get_original_feature_name(col) for col in used_client_cols]
-        file_analysis['critères_non_pris_en_charge_a_ignorer'] = [col.replace('_', ' ').capitalize() for col in ignored_client_cols]
-        file_analysis['critères_manquants_a_entrainer'] = [get_original_feature_name(col) for col in missing_trained_cols]
+        file_analysis['critères_pris_en_charge'] = [
+            observation_generator.get_original_feature_name(col, app_original_trained_features)
+            for col in used_client_cols
+        ]
+        file_analysis['critères_non_pris_en_charge_a_ignorer'] = [
+            col.replace('_', ' ').capitalize() 
+            for col in ignored_client_cols
+        ]
+        file_analysis['critères_manquants_a_entrainer'] = [
+            col.replace('_', ' ').capitalize() 
+            for col in missing_trained_cols
+        ]
+        if 'nom_prenom' in ignored_client_cols:
+            file_analysis['critères_non_pris_en_charge_a_ignorer'].append("Nom Prenom (identifiant client)")
 
     except Exception as e:
-        logging.error(f"Erreur lors de la génération des observations : {e}", exc_info=True)
+        logging.error(f"Erreur lors de la préparation des données pour prédiction : {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erreur lors de la préparation des données : {e}")
 
-    model = models[credit_type]
-    predictions = model.predict_proba(df_processed)[:, 1]
-    logging.info(f"Prédictions générées pour {len(predictions)} clients.")
-
+    # Commencer le DataFrame de résultats avec toutes les colonnes originales et l'identifiant client
     df_results = df_original.copy()
-    df_results['score_appetence'] = predictions
+
+    # --- Prédiction pour crédit consommation (scoring_PC) ---
+    try:
+        model_conso = models['conso']
+        if hasattr(model_conso, 'predict_proba') and len(model_conso.classes_) > 1:
+            predictions_conso = model_conso.predict_proba(df_processed_for_prediction)[:, 1]
+            df_results['scoring_PC'] = predictions_conso
+            logging.info(f"Scores 'scoring_PC' générés pour {len(predictions_conso)} clients.")
+        else:
+            logging.warning("Le modèle consommation n'est pas entraîné pour predict_proba ou est mono-classe. 'scoring_PC' sera NaN.")
+            df_results['scoring_PC'] = np.nan
+    except Exception as e:
+        logging.error(f"Erreur lors de la prédiction du scoring_PC : {e}", exc_info=True)
+        df_results['scoring_PC'] = np.nan
+        logging.warning("Impossible de générer 'scoring_PC'. Colonne remplie de NaN.")
+
+    # --- Prédiction pour crédit immobilier (scoring_PI) ---
+    try:
+        model_immo = models['immo']
+        if hasattr(model_immo, 'predict_proba') and len(model_immo.classes_) > 1:
+            predictions_immo = model_immo.predict_proba(df_processed_for_prediction)[:, 1]
+            df_results['scoring_PI'] = predictions_immo
+            logging.info(f"Scores 'scoring_PI' générés pour {len(predictions_immo)} clients.")
+        else:
+            logging.warning("Le modèle immobilier n'est pas entraîné pour predict_proba ou est mono-classe. 'scoring_PI' sera NaN.")
+            df_results['scoring_PI'] = np.nan
+    except Exception as e:
+        logging.error(f"Erreur lors de la prédiction du scoring_PI : {e}", exc_info=True)
+        df_results['scoring_PI'] = np.nan
+        logging.warning("Impossible de générer 'scoring_PI'. Colonne remplie de NaN.")
+
+
+    # Déterminer la colonne de score primaire basée sur le paramètre credit_type
+    primary_score_column = 'scoring_PC' if credit_type == 'conso' else 'scoring_PI'
+    
+    if primary_score_column in df_results.columns and not df_results[primary_score_column].isnull().all():
+        df_results['score_appetence'] = df_results[primary_score_column]
+    else:
+        df_results['score_appetence'] = np.nan 
+        logging.warning(f"La colonne de score primaire '{primary_score_column}' est manquante ou entièrement NaN. 'score_appetence' est défini à NaN.")
+
 
     num_appetent_clients = (df_results['score_appetence'] >= appetence_threshold).sum()
     file_analysis['nombre_clients_appetents'] = int(num_appetent_clients)
     file_analysis['seuil_appetence_utilise'] = appetence_threshold
+    file_analysis['score_primaire_calcule'] = primary_score_column 
 
-    df_results = add_client_insights_to_df(
+    # --- Appel de la fonction pour ajouter les insights client ---
+    # On passe maintenant app_original_trained_features à add_client_insights_to_df
+    df_results = observation_generator.add_client_insights_to_df(
         df_results=df_results,
-        df_original=df_original,
-        model_feature_importances=model_performance_metrics.get(credit_type, {}).get('feature_importances', [])
+        df_original=df_original, 
+        model_feature_importances=model_performance_metrics.get(credit_type, {}).get('feature_importances', []),
+        original_trained_features=app_original_trained_features 
     )
 
     base_filename = os.path.splitext(file.filename)[0].replace(' ', '_').lower()
     
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
     report_paths = {}
 
-    # --- Génération et stockage temporaire du rapport PDF ---
-    pdf_filename_base = f"rapport_scoring_{base_filename}_{credit_type}.pdf"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf", dir="/tmp") as tmp_pdf_file:
-        temp_pdf_path = tmp_pdf_file.name
+    # --- Génération du rapport PDF ---
+    pdf_filename = f"rapport_scoring_{base_filename}_{credit_type}.pdf"
+    pdf_path = os.path.join(reports_dir, pdf_filename)
     try:
         generate_pdf_report(
-            df_results,
-            temp_pdf_path,
-            credit_type,
+            df_results, 
+            pdf_path,
+            credit_type, 
             model_performance_metrics.get(credit_type, {}),
             file_analysis,
-            df_original
+            df_original, 
+            app_original_trained_features 
         )
-        temp_reports_storage[pdf_filename_base] = temp_pdf_path
-        report_paths['pdf'] = pdf_filename_base
-        logging.info(f"Rapport PDF généré et stocké temporairement : {temp_pdf_path}")
+        logging.info(f"Rapport PDF généré : {pdf_path}")
+        report_paths['pdf'] = pdf_filename
+        temp_reports_storage[pdf_filename] = pdf_path
     except Exception as e:
         logging.error(f"Erreur lors de la génération du rapport PDF : {e}", exc_info=True)
         report_paths['pdf'] = None
-        if os.path.exists(temp_pdf_path): os.remove(temp_pdf_path)
 
-
-    # --- Génération et stockage temporaire du rapport CSV ---
-    csv_filename_base = f"resultats_scoring_{base_filename}_{credit_type}.csv"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", dir="/tmp") as tmp_csv_file:
-        temp_csv_path = tmp_csv_file.name
+    # --- Génération du rapport CSV ---
+    csv_filename = f"resultats_scoring_{base_filename}_{credit_type}.csv"
+    csv_path = os.path.join(reports_dir, csv_filename)
     try:
-        df_results.to_csv(temp_csv_path, index=False)
-        temp_reports_storage[csv_filename_base] = temp_csv_path
-        report_paths['csv'] = csv_filename_base
-        logging.info(f"Rapport CSV généré et stocké temporairement : {temp_csv_path}")
+        df_results.to_csv(csv_path, index=False)
+        logging.info(f"Rapport CSV généré : {csv_path}")
+        report_paths['csv'] = csv_filename
+        temp_reports_storage[csv_filename] = csv_path
     except Exception as e:
         logging.error(f"Erreur lors de la génération du rapport CSV : {e}", exc_info=True)
         report_paths['csv'] = None
-        if os.path.exists(temp_csv_path): os.remove(temp_csv_path)
 
-    # --- Génération et stockage temporaire du rapport XLSX ---
-    xlsx_filename_base = f"resultats_scoring_{base_filename}_{credit_type}.xlsx"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx", dir="/tmp") as tmp_xlsx_file:
-        temp_xlsx_path = tmp_xlsx_file.name
+    # --- Génération du rapport XLSX ---
+    xlsx_filename = f"resultats_scoring_{base_filename}_{credit_type}.xlsx"
+    xlsx_path = os.path.join(reports_dir, xlsx_filename)
     try:
-        df_results.to_excel(temp_xlsx_path, index=False)
-        temp_reports_storage[xlsx_filename_base] = temp_xlsx_path
-        report_paths['xlsx'] = xlsx_filename_base
-        logging.info(f"Rapport XLSX généré et stocké temporairement : {temp_xlsx_path}")
+        df_results.to_excel(xlsx_path, index=False)
+        logging.info(f"Rapport XLSX généré : {xlsx_path}")
+        report_paths['xlsx'] = xlsx_filename
+        temp_reports_storage[xlsx_filename] = xlsx_path
     except Exception as e:
         logging.error(f"Erreur lors de la génération du rapport XLSX : {e}", exc_info=True)
         report_paths['xlsx'] = None
-        if os.path.exists(temp_xlsx_path): os.remove(temp_xlsx_path)
 
+    # Préparer les données pour le tableau détaillé du frontend
     predictions_with_details = []
-    num_clients_to_display = min(50, len(df_results))
-    
-    original_cols_for_frontend = [col for col in ['client_identifier', 'age', 'revenu', 'nb_enfants', 'statut_pro', 'anciennete_client_annees', 'credit_existant_conso'] if col in df_results.columns]
+    num_clients_to_display = min(50, len(df_results)) 
+
+    cols_to_display_in_frontend_original_data = df_original.columns.tolist()
+    if 'score_appetence' in cols_to_display_in_frontend_original_data:
+        cols_to_display_in_frontend_original_data.remove('score_appetence')
 
     for i in range(num_clients_to_display):
         client_row = df_results.iloc[i]
         original_data_for_client = {}
-        for col in original_cols_for_frontend:
+        for col in cols_to_display_in_frontend_original_data:
             val = client_row.get(col, None)
-            if pd.isna(val):
-                original_data_for_client[col] = None
-            elif isinstance(val, (np.integer, np.floating)):
-                original_data_for_client[col] = val.item()
-            else:
-                original_data_for_client[col] = val
+            original_data_for_client[col] = clean_nans_infs_recursive(val)
+
+        scoring_pc = client_row.get('scoring_PC', np.nan)
+        scoring_pi = client_row.get('scoring_PI', np.nan)
+        score_appetence = client_row.get('score_appetence', np.nan)
 
         predictions_with_details.append({
-            "original_data": original_data_for_client,
-            "score_appetence": client_row['score_appetence'],
+            "original_data": original_data_for_client, 
+            "scoring_PC": clean_nans_infs_recursive(scoring_pc),
+            "scoring_PI": clean_nans_infs_recursive(scoring_pi),
+            "score_appetence": clean_nans_infs_recursive(score_appetence),
             "observations_forces": client_row['observations_forces'],
             "observations_faiblesses": client_row['observations_faiblesses']
         })
-
-    return jsonable_encoder({
+    
+    final_response_data = {
         "message": "Prédiction effectuée avec succès et rapports générés.",
-        "predictions": predictions.tolist(),
+        "predictions": clean_nans_infs_recursive(df_results[primary_score_column].tolist()),
         "predictions_with_details": predictions_with_details,
         "model_metrics": model_performance_metrics.get(credit_type, {}),
         "file_analysis": file_analysis,
         "report_paths": report_paths
-    })
+    }
+    
+    return jsonable_encoder(clean_nans_infs_recursive(final_response_data))
 
-# --- Endpoints de téléchargement local ---
+# Endpoints de téléchargement des rapports temporaires
 @app.get("/download_report/{report_filename:path}")
 async def download_pdf_report(report_filename: str):
     file_path = temp_reports_storage.get(report_filename)
