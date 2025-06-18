@@ -84,7 +84,7 @@
       </section>
 
       <!-- Nouvelle section dédiée à la Performance du Moteur IA -->
-      <section id="ia-performance-section" class="card main-section hidden fade-in">
+      <section id="ia-performance-section" class="card main-section hidden">
         <h2><i class="fas fa-robot icon-title"></i> Performance du Moteur IA</h2>
         <div id="iaMetricsContent">
           <!-- Les métriques de l'IA seront insérées ici par JS -->
@@ -92,7 +92,7 @@
       </section>
 
       <!-- Nouvelle section dédiée à l'Analyse du Fichier Client -->
-      <section id="file-analysis-section" class="card main-section hidden fade-in">
+      <section id="file-analysis-section" class="card main-section hidden">
         <h2><i class="fas fa-file-alt icon-title"></i> Analyse du Fichier Client</h2>
         <div id="fileMetricsContent">
           <!-- L'analyse du fichier sera insérée ici par JS -->
@@ -105,10 +105,10 @@
       </section>
 
       <!-- Section existante pour les résultats de scoring détaillés par client -->
-      <section id="client-scoring-results" class="card main-section hidden fade-in">
+      <section id="client-scoring-results" class="card main-section hidden">
         <h2><i class="fas fa-users icon-title"></i> Résultats de Scoring Détaillés par Client</h2>
         <div id="client-scoring-table-container">
-          <table id="predictions-table">
+          <table class="data-table">
             <thead>
               <tr>
                 <!-- Les en-têtes seront insérés dynamiquement par JavaScript -->
@@ -119,14 +119,16 @@
             </tbody>
           </table>
           <div class="pagination-controls">
-            <button id="show-more-button" class="btn btn-primary hidden">Afficher plus de clients</button>
-            <p id="no-more-clients" class="message info hidden">Tous les clients ont été affichés.</p>
+            <button id="prevPageBtn" class="btn-secondary" disabled>Précédent</button>
+            <span id="page-info">Page 1 sur 1</span>
+            <button id="nextPageBtn" class="btn-secondary" disabled>Suivant</button>
+            <button id="showAllBtn" class="btn-secondary hidden">Afficher tout</button>
           </div>
         </div>
       </section>
 
       <!-- Section existante pour les résultats bruts de prédiction -->
-      <section id="raw-predictions-section" class="card main-section hidden fade-in">
+      <section id="raw-predictions-section" class="card main-section hidden">
         <h2><i class="fas fa-clipboard-list icon-title"></i> Résultats Bruts de Prédiction</h2>
         <pre id="rawPredictionsContent"></pre>
       </section>
