@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:8000/predict_aptitude/?credit_type=${creditType}`, {
+      const response = await fetch(`https://df-itbabar-1.onrender.com/predict_aptitude/?credit_type=conso`, {
         method: 'POST',
         body: formData,
       });
