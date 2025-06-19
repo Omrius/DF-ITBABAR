@@ -17,7 +17,6 @@ from starlette.background import BackgroundTask
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # IMPORTATIONS : Les chemins sont relatifs au paquet 'backend' qui sera maintenant la Root Directory sur Render
-# Assurez-vous que ces lignes sont bien telles quelles dans votre backend/app.py
 import utils.observation_generator as observation_generator
 from utils.report_generator import generate_pdf_report 
 
@@ -26,9 +25,19 @@ app = FastAPI()
 
 # Middleware CORS pour permettre les requêtes depuis le frontend
 logging.info("DEBUG: Application du CORSMiddleware...")
+# Définir explicitement les origines autorisées pour la production
+# Ajoutez ici l'URL de votre frontend déployé sur Render
+allowed_origins = [
+    "https://df-itbabar-1.onrender.com",  # L'URL de votre frontend
+    "https://df-itbabar.onrender.com",   # L'URL de votre backend lui-même (si le frontend est sur le même domaine, ou pour des tests)
+    "http://localhost:8080",             # Pour le développement local du frontend
+    "http://localhost:8000",             # Pour le développement local du backend
+    "*"                                  # Généralement à éviter en production, mais utile pour le débogage initial si les autres ne fonctionnent pas
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Permettre toutes les origines pour le développement/démo simple
+    allow_origins=allowed_origins, # Utiliser la liste des origines autorisées
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -370,7 +379,7 @@ async def predict_aptitude(
     for i in range(num_clients_to_display):
         client_row = df_results.iloc[i]
         original_data_for_client = {}
-        for col in cols_to_to_display_in_frontend_original_data:
+        for col in cols_to_display_in_frontend_original_data:
             val = client_row.get(col, None)
             original_data_for_client[col] = clean_nans_infs_recursive(val)
 
