@@ -1,53 +1,70 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE (DÉSACTIVÉ POUR DÉPLOIEMENT RENDER) ---
-  /*
+  // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE (RÉACTIVÉ) ---
   const MOT_DE_PASSE_CORRECT = "votre_mot_de_passe_secret"; // Remplacez par votre mot de passe
 
-  function demanderMotDePas(attemptCount = 0) {
-    if (attemptCount >= 3) {
-      // Utilisez une modal ou un message sur la page au lieu d'alert()
-      console.error("Trop de tentatives infructueuses. Accès refusé.");
-      document.body.style.display = 'none';
-      return false;
-    }
+  // Récupérer les éléments de la page de connexion
+  const loginSection = document.getElementById('login-section');
+  const loginForm = document.getElementById('login-form');
+  const loginMessageDiv = document.getElementById('login-message');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
 
-    let motDePasse = prompt("Veuillez entrer le mot de passe pour accéder au dashboard :");
+  // Récupérer les éléments du tableau de bord principal
+  const mainDashboardContent = document.getElementById('main-dashboard-content');
 
-    if (motDePasse === null) {
-      console.error("Accès refusé. L'utilisateur a annulé.");
-      document.body.style.display = 'none';
-      return false;
-    } else if (motDePasse === MOT_DE_PASSE_CORRECT) {
-      document.body.style.display = '';
-      return true;
+  // Fonction pour afficher les messages de connexion
+  function showLoginMessage(message, type) {
+    loginMessageDiv.textContent = message;
+    loginMessageDiv.className = `message ${type} visible`;
+    // Cacher le message après quelques secondes
+    setTimeout(() => {
+      loginMessageDiv.classList.remove('visible');
+    }, 5000);
+  }
+
+  // Gérer la soumission du formulaire de connexion
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = usernameInput.value;
+    const password = passwordInput.value;
+
+    // Pour cette démo simple, nous vérifions le mot de passe côté client.
+    // EN PRODUCTION, CECI DEVRAIT ÊTRE UNE VÉRIFICATION CÔTÉ SERVEUR VIA UNE API D'AUTHENTIFICATION.
+    if (username === "user" && password === MOT_DE_PASSE_CORRECT) { // Utilisation du mot de passe défini
+      showLoginMessage("Connexion réussie !", 'success');
+      // Si la connexion est réussie, cacher la section de connexion et afficher le tableau de bord
+      loginSection.classList.add('hidden');
+      mainDashboardContent.classList.remove('hidden');
+      // Optionnel: stocker un état de connexion (par ex., dans sessionStorage)
+      sessionStorage.setItem('isLoggedIn', 'true');
     } else {
-      console.warn("Mot de passe incorrect. Réessayez.");
-      // Affichez un message à l'utilisateur ici au lieu d'alert()
-      return demanderMotDePas(attemptCount + 1);
+      showLoginMessage("Nom d'utilisateur ou mot de passe incorrect.", 'error');
+      // Nettoyer les champs pour une nouvelle tentative
+      passwordInput.value = '';
+    }
+  });
+
+  // Vérifier l'état de connexion au chargement de la page
+  function checkLoginStatus() {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (isLoggedIn === 'true') {
+      loginSection.classList.add('hidden');
+      mainDashboardContent.classList.remove('hidden');
+    } else {
+      loginSection.classList.remove('hidden');
+      mainDashboardContent.classList.add('hidden');
     }
   }
 
-  // NOTE: La fonction prompt() et alert() ne sont pas recommandées dans un environnement iFrame.
-  // Pour une meilleure expérience utilisateur, remplacez-les par une interface utilisateur modale personnalisée.
-  document.body.style.display = 'none';
-  const accesAutorise = demanderMotDePas();
-  if (!accesAutorise) {
-    return;
-  }
-  */
+  // Appeler la fonction de vérification de l'état de connexion au chargement initial
+  checkLoginStatus();
   // --- FIN DU CODE POUR LA PROTECTION PAR MOT DE PASSE ---
 
 
-  // --- DÉBUT DU CODE EXISTANT DE app.js ---
-  // Rendre le contenu principal visible par défaut puisque le prompt est désactivé
-  document.getElementById('login-section').classList.add('hidden');
-  document.getElementById('main-dashboard-content').classList.remove('hidden');
-
-
+  // --- DÉBUT DU CODE EXISTANT DE app.js (suite) ---
   const fileInput = document.getElementById('fileInput');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const confirmationDiv = document.getElementById('confirmation');
-  // MODIFICATION ICI: Renommage de resultsContent en rawPredictionsContent pour correspondre à l'ID HTML
   const rawPredictionsContent = document.getElementById('rawPredictionsContent'); 
   const creditTypeSelect = document.getElementById('creditType');
   const downloadReportBtn = document.getElementById('downloadReportBtn');
@@ -67,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentReportPaths = {};
   let lastAnalysisData = null; // Stocke les données de la dernière analyse
 
-  // --- Fonctions utilitaires pour les messages ---
+  // --- Fonctions utilitaires pour les messages (pour l'analyse, distinctes du login) ---
   function showMessage(message, type = 'info') {
     confirmationDiv.textContent = message;
     confirmationDiv.className = `message ${type}`;
@@ -97,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
       iaMetricsContent.innerHTML = '';
       fileMetricsContent.innerHTML = '';
       clientScoringTableContainer.innerHTML = '';
-      rawPredictionsContent.textContent = ''; // MODIFICATION ICI
+      rawPredictionsContent.textContent = '';
       // Activer seulement la section d'upload pendant l'analyse
       document.getElementById('upload-section').classList.remove('hidden');
       // Enlever 'active' des sidebar items, l'ajoutera après si succès
@@ -139,13 +156,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Passer toutes les données pertinentes, y compris le score primaire
         updateClientScoringTable(lastAnalysisData.predictions_with_details, lastAnalysisData.file_analysis.colonnes);
       } else if (sectionId === 'raw-predictions-section') {
-        rawPredictionsContent.textContent = JSON.stringify(lastAnalysisData.predictions_with_details, null, 2); // MODIFICATION ICI
+        rawPredictionsContent.textContent = JSON.stringify(lastAnalysisData.predictions_with_details, null, 2);
       }
     }
   }
 
-  // Initialisation: Afficher la section d'upload au chargement
-  showSection('upload-section');
+  // Initialisation: Afficher la section d'upload au chargement si déjà connecté
+  // Cette partie est maintenant gérée par checkLoginStatus au début
+  if (sessionStorage.getItem('isLoggedIn') === 'true') {
+     showSection('upload-section');
+  }
 
 
   // --- Gestion du bouton d'analyse ---
@@ -172,11 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoading(true);
 
     try {
-      // REMPLACEZ CETTE URL par celle de votre service BACKEND déployé sur Render
-      // Exemple : https://df-itbabar.onrender.com
       const backendUrl = "https://df-itbabar.onrender.com"; 
 
-      // Le credit_type est passé dans le corps de la requête via formData
       const response = await fetch(`${backendUrl}/predict_aptitude/`, {
         method: 'POST',
         body: formData,
@@ -193,11 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
       showMessage('Fichier analysé avec succès. Rapports générés.', 'success');
       
       // Mettre à jour et afficher les sections de résultats pertinentes
-      updateIaMetrics(data.model_metrics); // Toujours mettre à jour les données même si la section est cachée
+      updateIaMetrics(data.model_metrics);
       updateFileAnalysis(data.file_analysis);
-      // Passer le data.predictions_with_details qui contient maintenant les deux scores
       updateClientScoringTable(data.predictions_with_details, data.file_analysis.colonnes);
-      rawPredictionsContent.textContent = JSON.stringify(data.predictions_with_details, null, 2); // MODIFICATION ICI
+      rawPredictionsContent.textContent = JSON.stringify(data.predictions_with_details, null, 2);
 
       currentReportPaths = data.report_paths;
 
@@ -220,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (error) {
       showMessage(`❌ Erreur lors de l’analyse : ${error.message}`, 'error');
-      rawPredictionsContent.textContent = error.toString(); // MODIFICATION ICI
+      rawPredictionsContent.textContent = error.toString();
       console.error("Détail de l'erreur :", error);
     } finally {
       showLoading(false);
@@ -439,8 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Gestion du téléchargement des rapports ---
   downloadReportBtn.addEventListener('click', () => {
-    // REMPLACEZ CETTE URL par celle de votre service BACKEND déployé sur Render
-    // Exemple : https://df-itbabar.onrender.com
     const backendUrl = "https://df-itbabar.onrender.com"; 
     if (currentReportPaths.pdf) {
       window.open(`${backendUrl}/download_report/${currentReportPaths.pdf}`, '_blank');
@@ -450,8 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   downloadCsvBtn.addEventListener('click', () => {
-    // REMPLACEZ CETTE URL par celle de votre service BACKEND déployé sur Render
-    // Exemple : https://df-itbabar.onrender.com
     const backendUrl = "https://df-itbabar.onrender.com"; 
     if (currentReportPaths.csv) {
       window.open(`${backendUrl}/download_csv/${currentReportPaths.csv}`, '_blank');
@@ -461,8 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   downloadXlsxBtn.addEventListener('click', () => {
-    // REMPLACEZ CETTE URL par celle de votre service BACKEND déployé sur Render
-    // Exemple : https://df-itbabar.onrender.com
     const backendUrl = "https://df-itbabar.onrender.com"; 
     if (currentReportPaths.xlsx) {
       window.open(`${backendUrl}/download_xlsx/${currentReportPaths.xlsx}`, '_blank');
