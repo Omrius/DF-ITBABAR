@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   // --- DÉBUT DU CODE POUR LA PROTECTION PAR MOT DE PASSE (RÉACTIVÉ) ---
-  const MOT_DE_PASSE_CORRECT = "votre_mot_de_passe_secret"; // Remplacez par votre mot de passe
+  const MOT_DE_PASSE_CORRECT = "itbabardatafindser062025"; // Mot de passe réel à utiliser
 
   // Récupérer les éléments de la page de connexion
   const loginSection = document.getElementById('login-section');
@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
       mainDashboardContent.classList.remove('hidden');
       // Optionnel: stocker un état de connexion (par ex., dans sessionStorage)
       sessionStorage.setItem('isLoggedIn', 'true');
+      
+      // Après la connexion, afficher la première section du tableau de bord
+      showSection('upload-section');
     } else {
       showLoginMessage("Nom d'utilisateur ou mot de passe incorrect.", 'error');
       // Nettoyer les champs pour une nouvelle tentative
@@ -50,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoggedIn === 'true') {
       loginSection.classList.add('hidden');
       mainDashboardContent.classList.remove('hidden');
+      // Si déjà connecté, afficher la section initiale du tableau de bord
+      showSection('upload-section');
     } else {
       loginSection.classList.remove('hidden');
       mainDashboardContent.classList.add('hidden');
@@ -161,11 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initialisation: Afficher la section d'upload au chargement si déjà connecté
-  // Cette partie est maintenant gérée par checkLoginStatus au début
-  if (sessionStorage.getItem('isLoggedIn') === 'true') {
-     showSection('upload-section');
-  }
+  // Initialisation: Cette partie est maintenant gérée par checkLoginStatus au début
+  // if (sessionStorage.getItem('isLoggedIn') === 'true') {
+  //    showSection('upload-section');
+  // }
 
 
   // --- Gestion du bouton d'analyse ---
@@ -382,9 +386,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const orderedHeaders = Array.from(headerSet); // Convertir en tableau
 
-    // Trier les en-têtes pour mettre l'ID et les scores en premier pour une meilleure lisibilité
+    // Trier les en-têtes pour mettre l'ID, Nom Prenom et les scores en premier pour une meilleure lisibilité
     const specificOrder = [
-        'Client Identifier', 'Age', 'Revenu', 'Nbre Enfants', 'Situation Familiale',
+        'Client Identifier', 'Nom Prenom', 'Age', 'Revenu', 'Nbre Enfants', 'Situation Familiale',
         'Anciennete Emploi', 'Anciente Compte', 'Mvt Crediteur', 'Mvt Debiteur',
         'Credit Simt', 'Mt Plv Simt', 'Type Contrat', 'Solde Moy', 'Credit Imo', 'Credit Conso',
         'Score Conso', 'Score Immo', 'Score Appétence (Principal)', 'Forces', 'Faiblesses'
@@ -413,6 +417,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let cellValue = 'N/A';
             let originalKey = header.replace(/ /g, '_').toLowerCase(); // Convertir l'en-tête affiché en clé originale
             if (originalKey === 'client_identifier') originalKey = 'client_identifier'; // Cas spécifique pour l'ID
+            // Cas spécifique pour Nom Prenom car il est dans original_data mais son nom de colonne est 'nom_prenom'
+            if (header === 'Nom Prenom') {
+                originalKey = 'nom_prenom';
+            }
+
 
             if (client.original_data && client.original_data[originalKey] !== undefined) {
                 cellValue = client.original_data[originalKey];
